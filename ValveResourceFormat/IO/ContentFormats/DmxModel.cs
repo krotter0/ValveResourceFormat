@@ -167,7 +167,16 @@ public abstract class DmeTypedLog<T> : DMElement
 {
     protected DmeTypedLog(string namePostfix)
     {
-        string typeName = typeof(T).Name;
+        string typeName;
+        if (typeof(T) == typeof(float))
+        {
+            typeName = "Float";
+        }
+        else
+        {
+            typeName = typeof(T).Name;
+        }
+
         if (char.IsLower(typeName[0]))
         {
             typeName = char.ToUpper(typeName[0]) + typeName.Substring(1);

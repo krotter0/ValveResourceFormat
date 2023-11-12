@@ -7,8 +7,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly float[] Data;
 
-        public CCompressedStaticFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedStaticFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             Data = wantedElements.Select(i =>
             {
@@ -18,9 +18,19 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
 
         public override void Read(int frameIndex, Frame outFrame)
         {
-            for (var i = 0; i < RemapTable.Length; i++)
+            if (ChannelAttribute == AnimationChannelAttribute.Data)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
+                for (var i = 0; i < RemapNameTable.Length; i++)
+                {
+                    outFrame.SetMorph(RemapNameTable[i], Data[i]);
+                }
+            }
+            else
+            {
+                for (var i = 0; i < RemapTable.Length; i++)
+                {
+                    outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[i]);
+                }
             }
         }
     }

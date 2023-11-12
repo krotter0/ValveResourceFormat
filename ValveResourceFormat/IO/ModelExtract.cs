@@ -708,13 +708,15 @@ public class ModelExtract
         return dmeSkeleton;
     }
 
-    private static DmeChannel BuildDmeChannel<T>(string name, DmeTransform transform, string toAttribute, out DmeLog<T> log)
+    private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
     {
-        var channel = new DmeChannel();
-        channel.Name = name;
-        channel.ToElement = transform;
-        channel.ToAttribute = toAttribute;
-        channel.Mode = 3;
+        var channel = new DmeChannel
+        {
+            Name = name,
+            ToElement = toElement,
+            ToAttribute = toAttribute,
+            Mode = 3
+        };
 
         log = new DmeLog<T>();
         var logLayer = new DmeLogLayer<T>();
@@ -736,6 +738,14 @@ public class ModelExtract
         orientationLayer.LayerValues[frame.FrameIndex] = frameBone.Angle;
     }
 
+    private static void ProcessMorphFrameForDmeChannel(string morphName, Frame frame, TimeSpan time, DmeLogLayer<float> morphLayer)
+    {
+        var morphValue = frame.GetMorph(morphName);
+
+        morphLayer.Times.Add(time);
+        morphLayer.LayerValues[frame.FrameIndex] = morphValue;
+    }
+
     public static byte[] ToDmxAnim(Model model, Animation anim)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
@@ -748,13 +758,20 @@ public class ModelExtract
         clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / anim.Fps);
         clip.FrameRate = anim.Fps;
 
-        Frame[] frames = new Frame[anim.FrameCount];
+        var morphNames = new HashSet<string>();
+
+        var frames = new Frame[anim.FrameCount];
         for (int i = 0; i < anim.FrameCount; i++)
         {
-            Frame frame = new Frame(model.Skeleton);
+            var frame = new Frame(model.Skeleton);
             frame.FrameIndex = i;
             anim.DecodeFrame(frame);
             frames[i] = frame;
+
+            foreach (var morphName in frame.GetMorphNamesSet())
+            {
+                morphNames.Add(morphName);
+            }
         }
 
         foreach (var bone in model.Skeleton.Bones)
@@ -799,6 +816,27 @@ public class ModelExtract
 
             clip.Channels.Add(positionChannel);
             clip.Channels.Add(orientationChannel);
+        }
+
+        foreach (var morph in morphNames)
+        {
+            var morphElement = new Element();
+            morphElement.Name = morph;
+            morphElement.Add("flexWeight", 0f);
+
+            var morphChannel = BuildDmeChannel<float>($"{morph}_flex_channel", morphElement, "flexWeight", out var morphLog);
+            var morphLogLayer = morphLog.GetLayer(0);
+            morphLogLayer.LayerValues = new float[anim.FrameCount];
+
+            for (int i = 0; i < anim.FrameCount; i++)
+            {
+                Frame frame = frames[i];
+
+                TimeSpan time = TimeSpan.FromSeconds((double)i / anim.Fps);
+
+                ProcessMorphFrameForDmeChannel(morph, frame, time, morphLogLayer);
+            }
+            clip.Channels.Add(morphChannel);
         }
 
         animationList.Animations.Add(clip);

@@ -7,8 +7,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly float[] Data;
 
-        public CCompressedFullFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedFullFloat(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             const int elementSize = 4;
             var stride = elementCount * elementSize;
@@ -23,9 +23,20 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         public override void Read(int frameIndex, Frame outFrame)
         {
             var offset = frameIndex * RemapTable.Length;
-            for (var i = 0; i < RemapTable.Length; i++)
+
+            if (ChannelAttribute == AnimationChannelAttribute.Data)
             {
-                outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+                for (var i = 0; i < RemapNameTable.Length; i++)
+                {
+                    outFrame.SetMorph(RemapNameTable[i], Data[offset + i]);
+                }
+            }
+            else
+            {
+                for (var i = 0; i < RemapTable.Length; i++)
+                {
+                    outFrame.SetAttribute(RemapTable[i], ChannelAttribute, Data[offset + i]);
+                }
             }
         }
     }

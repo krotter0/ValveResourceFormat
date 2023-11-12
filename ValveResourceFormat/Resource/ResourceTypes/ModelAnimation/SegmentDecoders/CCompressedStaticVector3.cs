@@ -8,8 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly Vector3[] Data;
 
-        public CCompressedStaticVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedStaticVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             Data = wantedElements.Select(i =>
             {

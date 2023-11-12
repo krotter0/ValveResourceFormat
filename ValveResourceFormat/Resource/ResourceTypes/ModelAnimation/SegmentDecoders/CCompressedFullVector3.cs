@@ -7,8 +7,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly Vector3[] Data;
 
-        public CCompressedFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedFullVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             const int elementSize = 3 * 4;
             var stride = elementCount * elementSize;

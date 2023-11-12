@@ -8,8 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly Quaternion[] Data;
 
-        public CCompressedFullQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedFullQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             const int elementSize = 4 * 4;
             var stride = elementCount * elementSize;

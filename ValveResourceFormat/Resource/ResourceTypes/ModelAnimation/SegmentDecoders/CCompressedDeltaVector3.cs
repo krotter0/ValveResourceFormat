@@ -8,8 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
         private readonly Vector3[] BaseFrame;
         private readonly Half[] DeltaData;
 
-        public CCompressedDeltaVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedDeltaVector3(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            int elementCount, AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             const int baseElementSize = 4;
             const int deltaElementSize = 2;

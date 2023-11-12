@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Numerics;
 
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
@@ -7,10 +10,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     {
         public int FrameIndex { get; set; } = 1;
         public FrameBone[] Bones { get; }
+        private Dictionary<string, float> morphs = new Dictionary<string, float>();
 
         public Frame(Skeleton skeleton)
         {
             Bones = new FrameBone[skeleton.Bones.Length];
+            morphs = new Dictionary<string, float>();
             Clear(skeleton);
         }
 
@@ -60,6 +65,28 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     break;
 #endif
             }
+        }
+
+        public void SetMorph(string morphName, float value)
+        {
+            morphs[morphName] = value;
+        }
+
+        public float GetMorph(string morphName)
+        {
+            if (morphs.ContainsKey(morphName))
+            {
+                return morphs[morphName];
+            }
+            else
+            {
+                return 0f;
+            }
+        }
+
+        public string[] GetMorphNamesSet()
+        {
+            return morphs.Keys.ToArray();
         }
 
         /// <summary>

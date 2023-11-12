@@ -8,8 +8,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders
     {
         private readonly Quaternion[] Data;
 
-        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable,
-            AnimationChannelAttribute channelAttribute) : base(remapTable, channelAttribute)
+        public CCompressedStaticQuaternion(ArraySegment<byte> data, int[] wantedElements, int[] remapTable, string[] remapNameTable,
+            AnimationChannelAttribute channelAttribute) : base(remapTable, remapNameTable, channelAttribute)
         {
             Data = wantedElements.Select(i =>
             {

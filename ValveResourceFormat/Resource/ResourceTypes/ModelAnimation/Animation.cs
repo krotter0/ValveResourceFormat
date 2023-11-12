@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Security;
 using System.Numerics;
 using ValveResourceFormat.ResourceTypes.ModelAnimation.SegmentDecoders;
 using ValveResourceFormat.Serialization;
@@ -94,74 +95,87 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     container.Length - (int)containerReader.BaseStream.Position
                 );
 
-                var remapTable = localChannel.RemapTable
-                    .Select(i => Array.IndexOf(elements, i))
-                    .ToArray();
-                var wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
-                remapTable = remapTable
-                    .Select((boneID, i) => (boneID, i))
-                    .Where(t => t.boneID != -1)
-                    .Select(t => t.i)
-                    .ToArray();
+                int[] remapTable;
+                string[] remapNameTable;
+                int[] wantedElements;
                 var channelAttribute = localChannel.ChannelAttribute switch
                 {
                     "Position" => AnimationChannelAttribute.Position,
                     "Angle" => AnimationChannelAttribute.Angle,
                     "Scale" => AnimationChannelAttribute.Scale,
+                    "data" => AnimationChannelAttribute.Data,
                     _ => AnimationChannelAttribute.Unknown,
                 };
-
                 if (channelAttribute == AnimationChannelAttribute.Unknown)
                 {
-                    if (localChannel.ChannelAttribute != "data")
+                    Console.Error.WriteLine($"Unknown channel attribute '{localChannel.ChannelAttribute}' encountered with '{decoder}' decoder");
+                    continue;
+                }
+
+                if (localChannel.IsMorph)
+                {
+                    remapTable = localChannel.RemapTable;
+                    remapNameTable = localChannel.RemapNameTable;
+                    wantedElements = remapTable;
+                }
+                else
+                {
+                    if (channelAttribute == AnimationChannelAttribute.Data)
                     {
-                        Console.Error.WriteLine($"Unknown channel attribute '{localChannel.ChannelAttribute}' encountered with '{decoder}' decoder");
+                        continue;
                     }
 
-                    continue;
+                    remapTable = localChannel.RemapTable
+                        .Select(i => Array.IndexOf(elements, i))
+                        .ToArray();
+
+                    wantedElements = remapTable.Where(boneID => boneID != -1).ToArray();
+                    remapTable = remapTable
+                        .Select((boneID, i) => (boneID, i))
+                        .Where(t => t.boneID != -1)
+                        .Select(t => t.i)
+                        .ToArray();
+
+                    remapNameTable = localChannel.RemapNameTable;
                 }
 
                 // Look at the decoder to see what to read
                 switch (decoder)
                 {
                     case "CCompressedStaticFullVector3":
-                        segmentArray[i] = new CCompressedStaticFullVector3(containerSegment, wantedElements, remapTable, channelAttribute);
+                        segmentArray[i] = new CCompressedStaticFullVector3(containerSegment, wantedElements, remapTable, remapNameTable, channelAttribute);
                         break;
                     case "CCompressedStaticVector3":
-                        segmentArray[i] = new CCompressedStaticVector3(containerSegment, wantedElements, remapTable, channelAttribute);
+                        segmentArray[i] = new CCompressedStaticVector3(containerSegment, wantedElements, remapTable, remapNameTable, channelAttribute);
                         break;
                     case "CCompressedStaticQuaternion":
-                        segmentArray[i] = new CCompressedStaticQuaternion(containerSegment, wantedElements, remapTable, channelAttribute);
+                        segmentArray[i] = new CCompressedStaticQuaternion(containerSegment, wantedElements, remapTable, remapNameTable, channelAttribute);
                         break;
                     case "CCompressedStaticFloat":
-                        segmentArray[i] = new CCompressedStaticFloat(containerSegment, wantedElements, remapTable, channelAttribute);
+                        segmentArray[i] = new CCompressedStaticFloat(containerSegment, wantedElements, remapTable, remapNameTable, channelAttribute);
                         break;
 
                     case "CCompressedFullVector3":
-                        segmentArray[i] = new CCompressedFullVector3(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedFullVector3(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
                     case "CCompressedDeltaVector3":
-                        segmentArray[i] = new CCompressedDeltaVector3(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedDeltaVector3(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
                     case "CCompressedAnimVector3":
-                        segmentArray[i] = new CCompressedAnimVector3(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedAnimVector3(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
                     case "CCompressedAnimQuaternion":
-                        segmentArray[i] = new CCompressedAnimQuaternion(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedAnimQuaternion(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
                     case "CCompressedFullQuaternion":
-                        segmentArray[i] = new CCompressedFullQuaternion(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedFullQuaternion(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
                     case "CCompressedFullFloat":
-                        segmentArray[i] = new CCompressedFullFloat(containerSegment, wantedElements, remapTable, numElements, channelAttribute);
+                        segmentArray[i] = new CCompressedFullFloat(containerSegment, wantedElements, remapTable, remapNameTable, numElements, channelAttribute);
                         break;
 #if DEBUG
                     default:
-                        if (localChannel.ChannelAttribute != "data")
-                        {
-                            Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.ChannelAttribute}'");
-                        }
-
+                        Console.WriteLine($"Unhandled animation bone decoder type '{decoder}' for attribute '{localChannel.ChannelAttribute}'");
                         break;
 #endif
                 }
