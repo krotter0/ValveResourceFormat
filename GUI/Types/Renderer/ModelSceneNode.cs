@@ -121,6 +121,11 @@ namespace GUI.Types.Renderer
             {
                 ArrayPool<Matrix4x4>.Shared.Return(matrices);
             }
+
+            if (AnimationController.ActiveAnimation != null)
+            {
+                Transform = Matrix4x4.Identity * AnimationController.ActiveAnimation.GetCurrentMovementOffset(AnimationController.Time);
+            }
         }
 
         public override void Render(Scene.RenderContext context)
