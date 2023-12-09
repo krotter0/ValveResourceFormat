@@ -186,6 +186,58 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
 
+        private AnimationMovement GetMovementForFrame(int frame)
+        {
+            for (int i = 1; i < MovementArray.Length; i++)
+            {
+                var movement = MovementArray[i];
+                if (movement.EndFrame > frame)
+                {
+                    return MovementArray[i - 1];
+                }
+            }
+            return null;
+        }
+
+        public Matrix4x4 GetCurrentMovementOffset(int frame, float t)
+        {
+            var movementData = GetMovementForFrame(frame);
+            if (movementData == null)
+            {
+                return Matrix4x4.Identity;
+            }
+
+            var lastPositionDelta = movementData.Vector * (1 - t);
+
+            var rotationDegrees = movementData.Angle * 0.0174532925f;
+            return Matrix4x4.CreateRotationZ(rotationDegrees) * Matrix4x4.CreateTranslation(movementData.Position + lastPositionDelta);
+        }
+
+        public Matrix4x4 GetCurrentMovementOffset(float time)
+        {
+            var frame = GetFrameForTime(time, out var t);
+            var nextFrame = frame + 1;
+
+            var offset = GetCurrentMovementOffset(frame, t);
+            var nextOffset = GetCurrentMovementOffset(nextFrame, t);
+            
+            return offset;
+        }
+
+        private int GetFrameForTime(float time, out float t)
+        {
+            if (FrameCount == 0)
+            {
+                t = 0;
+                return 0;
+            }
+
+            var frameTime = time * Fps;
+            var frame = (int)Math.Floor(frameTime);
+            t = frameTime - frame;
+            return frame;
+        }
+
         /// <summary>
         /// Get the animation matrix for each bone.
         /// </summary>
