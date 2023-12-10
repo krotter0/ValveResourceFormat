@@ -196,7 +196,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     return MovementArray[i - 1];
                 }
             }
-            return null;
+            return MovementArray.LastOrDefault();
         }
 
         public Matrix4x4 GetCurrentMovementOffset(float time)
