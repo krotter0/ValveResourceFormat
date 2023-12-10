@@ -199,29 +199,24 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return null;
         }
 
-        public Matrix4x4 GetCurrentMovementOffset(int frame, float t)
-        {
-            var movementData = GetMovementForFrame(frame);
-            if (movementData == null)
-            {
-                return Matrix4x4.Identity;
-            }
-
-            var lastPositionDelta = movementData.Vector * (1 - t);
-
-            var rotationDegrees = movementData.Angle * 0.0174532925f;
-            return Matrix4x4.CreateRotationZ(rotationDegrees) * Matrix4x4.CreateTranslation(movementData.Position + lastPositionDelta);
-        }
-
         public Matrix4x4 GetCurrentMovementOffset(float time)
         {
             var frame = GetFrameForTime(time, out var t);
             var nextFrame = frame + 1;
 
-            var offset = GetCurrentMovementOffset(frame, t);
-            var nextOffset = GetCurrentMovementOffset(nextFrame, t);
-            
-            return offset;
+            var movement = GetMovementForFrame(frame);
+            var nextMovement = GetMovementForFrame(nextFrame);
+
+            var matrix = movement.GetMatrix();
+            if (nextMovement == null)
+            {
+                return matrix;
+            }
+            else
+            {
+                var nextMatrix = nextMovement.GetMatrix();
+                return Matrix4x4.Lerp(matrix, nextMatrix, t);
+            }
         }
 
         private int GetFrameForTime(float time, out float t)
@@ -235,7 +230,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var frameTime = time * Fps;
             var frame = (int)Math.Floor(frameTime);
             t = frameTime - frame;
-            return frame;
+            return frame % FrameCount;
         }
 
         /// <summary>
