@@ -32,8 +32,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         public Matrix4x4 GetMatrix()
         {
-            var rotationDegrees = Angle * 0.0174532925f;
-            return Matrix4x4.CreateRotationZ(rotationDegrees) * Matrix4x4.CreateTranslation(Position);
+            var rotationRad = Angle * 0.0174532925f; //Deg to rad
+            return Matrix4x4.CreateRotationZ(rotationRad) * Matrix4x4.CreateTranslation(Position);
         }
     }
 }
