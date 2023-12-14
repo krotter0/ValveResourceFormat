@@ -31,6 +31,7 @@ namespace GUI.Types.Renderer
             }
         }
 
+        public bool AnimateRootMotion { get; set; }
         public readonly AnimationController AnimationController;
         public List<RenderableMesh> RenderableMeshes => activeMeshRenderers;
         public string ActiveMaterialGroup => activeMaterialGroup.Name;
@@ -153,7 +154,10 @@ namespace GUI.Types.Renderer
                 renderableMesh.FlexStateManager.MorphComposite.Render();
             }
 
-            Transform *= AnimationController.GetMovementDelta();
+            if (AnimateRootMotion)
+            {
+                Transform *= AnimationController.GetMovementDelta();
+            }
         }
 
         public override void Render(Scene.RenderContext context)

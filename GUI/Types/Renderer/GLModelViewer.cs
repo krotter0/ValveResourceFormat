@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,6 +16,7 @@ namespace GUI.Types.Renderer
         private PhysAggregateData phys;
         public ComboBox animationComboBox { get; private set; }
         private CheckBox animationPlayPause;
+        private CheckBox animationShowRootMotion;
         private CheckBox showSkeletonCheckbox;
         private GLViewerTrackBarControl animationTrackBar;
         private GLViewerTrackBarControl slowmodeTrackBar;
@@ -67,6 +69,15 @@ namespace GUI.Types.Renderer
                 if (modelSceneNode != null)
                 {
                     modelSceneNode.AnimationController.IsPaused = !isChecked;
+                }
+            });
+            modelSceneNode.AnimateRootMotion = true;
+            animationShowRootMotion = AddCheckBox("Animate root motion", true, isChecked =>
+            {
+                if (modelSceneNode != null)
+                {
+                    modelSceneNode.AnimateRootMotion = isChecked;
+                    modelSceneNode.Transform = Matrix4x4.Identity;
                 }
             });
             animationTrackBar = AddTrackBar(frame =>
