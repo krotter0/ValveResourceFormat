@@ -185,6 +185,39 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return MovementArray.LastOrDefault();
         }
 
+        private AnimationMovement GetLastAnimationMovement()
+        {
+            return MovementArray.LastOrDefault();
+        }
+
+        public Matrix4x4 GetDeltaMovementOffset(float lastTime, float currentTime)
+        {
+            if (lastTime == currentTime || MovementArray.Length == 0)
+            {
+                return Matrix4x4.Identity;
+            }
+
+            var lastFrame = GetFrameForTime(lastTime, out _);
+            var currentFrame = GetFrameForTime(currentTime, out _);
+
+            var delta = Matrix4x4.Identity;
+            if (lastFrame > currentFrame)
+            {
+                var animTotalTime = FrameCount / Fps;
+                var numberOfCompletions = (int)Math.Ceiling((currentTime - lastTime) / animTotalTime);
+
+                var totalMovement = GetLastAnimationMovement();
+                delta *= totalMovement.GetMatrix() * numberOfCompletions;
+            }
+            var lastMovement = GetCurrentMovementOffset(lastTime);
+            var currentMovement = GetCurrentMovementOffset(currentTime);
+
+            Matrix4x4.Invert(lastMovement, out var lastMovementInv);
+
+            delta *= lastMovementInv * currentMovement;
+            return delta;
+        }
+
         public Matrix4x4 GetCurrentMovementOffset(float time)
         {
             var frame = GetFrameForTime(time, out var t);
