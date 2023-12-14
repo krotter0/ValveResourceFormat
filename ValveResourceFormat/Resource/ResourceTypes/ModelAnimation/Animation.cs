@@ -209,8 +209,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var totalMovement = GetLastAnimationMovement();
                 delta *= totalMovement.GetMatrix() * numberOfCompletions;
             }
-            var lastMovement = GetCurrentMovementOffset(lastTime);
-            var currentMovement = GetCurrentMovementOffset(currentTime);
+            var lastMovement = GetMovementOffset(lastTime);
+            var currentMovement = GetMovementOffset(currentTime);
 
             Matrix4x4.Invert(lastMovement, out var lastMovementInv);
 
@@ -218,7 +218,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return delta;
         }
 
-        public Matrix4x4 GetCurrentMovementOffset(float time)
+        public Matrix4x4 GetMovementOffset(float time)
         {
             var frame = GetFrameForTime(time, out var t);
             var nextFrame = frame + 1;
