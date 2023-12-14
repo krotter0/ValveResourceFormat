@@ -205,6 +205,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var nextFrame = frame + 1;
 
             var movement = GetMovementForFrame(frame);
+            if (movement == null)
+            {
+                return Matrix4x4.Identity;
+            }
+
             var nextMovement = GetMovementForFrame(nextFrame);
 
             var matrix = movement.GetMatrix();
