@@ -13,6 +13,7 @@ namespace GUI.Types.Renderer
         private Animation activeAnimation;
         public float FrametimeMultiplier { get; set; } = 1.0f;
         public float Time { get; private set; }
+        private float lastTime;
         private bool shouldUpdate;
 
         public Animation ActiveAnimation => activeAnimation;
@@ -58,11 +59,16 @@ namespace GUI.Types.Renderer
                 shouldUpdate = false;
                 return res;
             }
-
+            lastTime = Time;
             Time += timeStep * FrametimeMultiplier;
             updateHandler(activeAnimation, Frame);
             shouldUpdate = false;
             return true;
+        }
+
+        public Matrix4x4 GetMovementDelta()
+        {
+            return activeAnimation.GetDeltaMovementOffset(lastTime, Time);
         }
 
         public void SetAnimation(Animation animation)
@@ -70,6 +76,7 @@ namespace GUI.Types.Renderer
             animationFrameCache.Clear();
             activeAnimation = animation;
             Time = 0f;
+            lastTime = 0f;
             Frame = 0;
             updateHandler(activeAnimation, -1);
         }

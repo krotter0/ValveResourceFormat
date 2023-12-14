@@ -153,11 +153,7 @@ namespace GUI.Types.Renderer
                 renderableMesh.FlexStateManager.MorphComposite.Render();
             }
 
-            //Update root motion
-            if (AnimationController.ActiveAnimation != null)
-            {
-                Transform = Matrix4x4.Identity * AnimationController.ActiveAnimation.GetCurrentMovementOffset(AnimationController.Time);
-            }
+            Transform *= AnimationController.GetMovementDelta();
         }
 
         public override void Render(Scene.RenderContext context)
