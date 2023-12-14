@@ -172,17 +172,22 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         private static IKeyValueCollection GetAnimationData(Resource resource)
             => resource.DataBlock.AsKeyValueCollection();
 
-        private AnimationMovement GetMovementForFrame(int frame)
+        private int GetMovementIndexForTime(float time)
+        {
+            return GetMovementIndexForFrame((int)Math.Floor(time * Fps));
+        }
+
+        private int GetMovementIndexForFrame(int frame)
         {
             for (int i = 1; i < MovementArray.Length; i++)
             {
                 var movement = MovementArray[i];
                 if (movement.EndFrame > frame)
                 {
-                    return MovementArray[i - 1];
+                    return i - 1;
                 }
             }
-            return MovementArray.LastOrDefault();
+            return MovementArray.Length - 1;
         }
 
         private AnimationMovement GetLastAnimationMovement()
@@ -214,33 +219,60 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             Matrix4x4.Invert(lastMovement, out var lastMovementInv);
 
-            delta *= lastMovementInv * currentMovement;
+            delta *= currentMovement * lastMovementInv;
             return delta;
         }
 
         public Matrix4x4 GetMovementOffset(float time)
         {
-            var frame = GetFrameForTime(time, out var t);
-            var nextFrame = frame + 1;
+            GetMovementForTime(time, out var movement, out var nextMovement, out var t);
 
-            var movement = GetMovementForFrame(frame);
             if (movement == null)
             {
                 return Matrix4x4.Identity;
             }
-
-            var nextMovement = GetMovementForFrame(nextFrame);
-
-            var matrix = movement.GetMatrix();
-            if (nextMovement == null)
+            else if (nextMovement == null)
             {
-                return matrix;
+                return Matrix4x4.Lerp(Matrix4x4.Identity, movement.GetMatrix(), t);
             }
             else
             {
-                var nextMatrix = nextMovement.GetMatrix();
-                return Matrix4x4.Lerp(matrix, nextMatrix, t);
+                return Matrix4x4.Lerp(movement.GetMatrix(), nextMovement.GetMatrix(), t);
             }
+        }
+
+        private void GetMovementForTime(float time, out AnimationMovement lastMovement, out AnimationMovement nextMovement, out float t)
+        {
+            time = time % (FrameCount / Fps);
+            var lastMovementIndex = GetMovementIndexForTime(time);
+            var nextMovementIndex = lastMovementIndex + 1;
+
+            if (lastMovementIndex == 0)
+            {
+                lastMovement = MovementArray[lastMovementIndex];
+                nextMovement = null;
+                var movementTime = lastMovement.EndFrame / Fps;
+                t = time / movementTime;
+                return;
+            }
+            else if (nextMovementIndex >= MovementArray.Length)
+            {
+                lastMovement = MovementArray[lastMovementIndex];
+                nextMovement = null;
+                t = 1f;
+                return;
+            }
+
+            lastMovement = MovementArray[lastMovementIndex];
+            nextMovement = MovementArray[nextMovementIndex];
+
+
+            var startTime = lastMovement.EndFrame / Fps;
+            var endTime = nextMovement.EndFrame / Fps;
+
+            var len = endTime - startTime;
+
+            t = Math.Min(1f, (time - startTime) / len);
         }
 
         private int GetFrameForTime(float time, out float t)
