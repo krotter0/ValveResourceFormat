@@ -15,13 +15,23 @@
             1 - (1.5 + floor(vertexId / morphCompositeTextureSize.x)) / 2048.0
         );
     }
-
-    vec3 getMorphOffset()
+    
+    vec3 getMorphPositionOffset()
     {
         return texture(morphCompositeTexture, getMorphUV()).xyz;
     }
+
+    vec3 getMorphNormalOffset()
+    {
+        return texture(morphCompositeTexture, getMorphUV() + vec2(0.5, 0.0)).xyz;
+    }
 #else
-    vec3 getMorphOffset()
+    vec3 getMorphPositionOffset()
+    {
+        return vec3(0, 0, 0);
+    }
+
+    vec3 getMorphNormalOffset()
     {
         return vec3(0, 0, 0);
     }

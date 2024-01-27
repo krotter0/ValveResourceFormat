@@ -180,13 +180,15 @@ vec4 GetTintColor()
 void main()
 {
     mat4 skinTransform = transform * getSkinMatrix();
-    vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphOffset(), 1.0);
+    vec4 fragPosition = skinTransform * vec4(vPOSITION + getMorphPositionOffset(), 1.0);
     gl_Position = g_matViewToProjection * fragPosition;
     vFragPosition = fragPosition.xyz / fragPosition.w;
 
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
+    
+    normal += getMorphNormalOffset();
 
     mat3 normalTransform = transpose(inverse(mat3(skinTransform)));
     vNormalOut = normalize(normalTransform * normal);
