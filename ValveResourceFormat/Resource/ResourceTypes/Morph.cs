@@ -11,6 +11,7 @@ namespace ValveResourceFormat.ResourceTypes
 {
     public class Morph : KeyValuesOrNTRO
     {
+        public MorphBundleType[] BundleTypes { get; private set; }
         public FlexRule[] FlexRules { get; private set; }
         public FlexController[] FlexControllers { get; private set; }
         public Texture Texture { get; private set; }
@@ -60,8 +61,6 @@ namespace ValveResourceFormat.ResourceTypes
                 return flexData;
             }
 
-            var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
-
             foreach (var pair in morphDatas)
             {
                 if (pair.Value is not IKeyValueCollection morphData)
@@ -95,7 +94,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                         // We currently only support Position.
                         // TODO: Add Normal support for gltf
-                        if (bundleTypes[bundleKey] != MorphBundleType.PositionSpeed)
+                        if (BundleTypes[bundleKey] != MorphBundleType.PositionSpeed)
                         {
                             continue;
                         }
@@ -155,6 +154,8 @@ namespace ValveResourceFormat.ResourceTypes
             FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
                 .Select(kv => ParseFlexController(kv.Value))
                 .ToArray();
+
+            BundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv.Value)).ToArray();
         }
         private static FlexController ParseFlexController(object obj)
         {
