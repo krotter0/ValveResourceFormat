@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
@@ -36,6 +37,7 @@ namespace GUI.Types.Renderer
             public float HeightV;
             public float LeftU;
             public float TopV;
+            public MorphBundleType Type;
 
             public Vector4 Offsets;
             public Vector4 Ranges;
@@ -73,7 +75,7 @@ namespace GUI.Types.Renderer
         private static int GetMorphDataBundleCount(IKeyValueCollection morphData)
         {
             var rectDatas = morphData.GetSubCollection("m_morphRectDatas");
-            return rectDatas.Count();
+            return rectDatas.Sum(kv => ((IKeyValueCollection)kv.Value).GetSubCollection("m_bundleDatas").Count());
         }
 
         private void InitRenderTarget()
@@ -205,36 +207,43 @@ namespace GUI.Types.Renderer
 
                 foreach (var rectPair in morphRectDatas)
                 {
-                    morphRects[morphId].Add(rectCount);
-
                     var morphRectData = (IKeyValueCollection)rectPair.Value;
-                    //TODO: Implement normal/wrinkle bundle type (second bundle data usually, if exists)
-                    var bundleData = (IKeyValueCollection)morphRectData.GetSubCollection("m_bundleDatas").First().Value;
-
-                    var offsets = bundleData.GetFloatArray("m_offsets");
-                    var ranges = bundleData.GetFloatArray("m_ranges");
-
-                    var vertexData = new MorphCompositeRectData
+                    var bundles = morphRectData.GetSubCollection("m_bundleDatas");
+                    foreach (var item in bundles)
                     {
-                        LeftX = morphRectData.GetInt32Property("m_nXLeftDst"),
-                        TopY = morphRectData.GetInt32Property("m_nYTopDst"),
-                        WidthU = morphRectData.GetFloatProperty("m_flUWidthSrc"),
-                        HeightV = morphRectData.GetFloatProperty("m_flVHeightSrc"),
+                        var bundleData = (IKeyValueCollection)item.Value;
+                        var bundleTypeIndex = int.Parse(item.Key, CultureInfo.InvariantCulture);
+                        var bundleType = Morph.BundleTypes[bundleTypeIndex];
 
-                        LeftU = bundleData.GetFloatProperty("m_flULeftSrc"),
-                        TopV = bundleData.GetFloatProperty("m_flVTopSrc"),
+                        morphRects[morphId].Add(rectCount);
 
-                        Offsets = new Vector4(
-                            offsets[0], offsets[1], offsets[2], offsets[3]
-                        ),
+                        var offsets = bundleData.GetFloatArray("m_offsets");
+                        var ranges = bundleData.GetFloatArray("m_ranges");
 
-                        Ranges = new Vector4(
-                            ranges[0], ranges[1], ranges[2], ranges[3]
-                        ),
-                    };
+                        var vertexData = new MorphCompositeRectData
+                        {
+                            LeftX = morphRectData.GetInt32Property("m_nXLeftDst"),
+                            TopY = morphRectData.GetInt32Property("m_nYTopDst"),
+                            WidthU = morphRectData.GetFloatProperty("m_flUWidthSrc"),
+                            HeightV = morphRectData.GetFloatProperty("m_flVHeightSrc"),
 
-                    SetRectData(rectCount, vertexData);
-                    rectCount++;
+                            LeftU = bundleData.GetFloatProperty("m_flULeftSrc"),
+                            TopV = bundleData.GetFloatProperty("m_flVTopSrc"),
+
+                            Type = bundleType,
+
+                            Offsets = new Vector4(
+                                offsets[0], offsets[1], offsets[2], offsets[3]
+                            ),
+
+                            Ranges = new Vector4(
+                                ranges[0], ranges[1], ranges[2], ranges[3]
+                            ),
+                        };
+
+                        SetRectData(rectCount, vertexData);
+                        rectCount++;
+                    }
                 }
             }
         }
@@ -258,8 +267,14 @@ namespace GUI.Types.Renderer
             var widthScale = morphAtlas.Width / TextureSize;
             var heightScale = morphAtlas.Height / TextureSize;
 
-            var topLeftX = VertexOffset + (data.LeftX * PixelSize * 2) - 1;
+            var topLeftX = VertexOffset + (data.LeftX * PixelSize * 2);
             var topLeftY = 1 - (VertexOffset + data.TopY * PixelSize * 2);
+
+            if (data.Type == MorphBundleType.PositionSpeed)
+            {
+                topLeftX -= 1f;
+            }
+
             var bottomRightX = topLeftX + widthScale * data.WidthU * 2;
             var bottomRightY = topLeftY - heightScale * data.HeightV * 2;
 
