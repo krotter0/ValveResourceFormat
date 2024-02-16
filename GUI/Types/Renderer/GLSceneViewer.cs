@@ -4,7 +4,6 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using GUI.Controls;
-using GUI.Types.ParticleRenderer;
 using GUI.Types.Renderer.UniformBuffers;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -20,6 +19,7 @@ namespace GUI.Types.Renderer
         public VrfGuiContext GuiContext => Scene.GuiContext;
 
         private bool ShowBaseGrid;
+        private bool ShowLightBackground;
         public bool ShowSkybox { get; set; } = true;
         public bool IsWireframe { get; set; }
 
@@ -37,6 +37,7 @@ namespace GUI.Types.Renderer
         private bool skipRenderModeChange;
         private ComboBox renderModeComboBox;
         private InfiniteGrid baseGrid;
+        private SceneBackground baseBackground;
         private OctreeDebugRenderer<SceneNode> staticOctreeRenderer;
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
@@ -213,6 +214,7 @@ namespace GUI.Types.Renderer
         protected virtual void OnLoad(object sender, EventArgs e)
         {
             baseGrid = new InfiniteGrid(Scene);
+            baseBackground = new SceneBackground(Scene);
             selectedNodeRenderer = new(Scene);
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
@@ -227,18 +229,11 @@ namespace GUI.Types.Renderer
 
             PostSceneLoad();
 
-            viewBuffer.Data.ClearColor = Settings.BackgroundColor;
-            if (Skybox2D is null)
-            {
-                MainFramebuffer.ClearColor = viewBuffer.Data.ClearColor;
-            }
-
             GLLoad -= OnLoad;
             GLPaint += OnPaint;
 
             GuiContext.ClearCache();
         }
-
 
         protected virtual void OnPaint(object sender, RenderEventArgs e)
         {
@@ -298,9 +293,26 @@ namespace GUI.Types.Renderer
 
                 if (ShowBaseGrid)
                 {
-                    baseGrid.Render(renderContext);
+                    baseGrid.Render();
                 }
             }
+        }
+
+        protected void DrawMainScene()
+        {
+            var renderContext = new Scene.RenderContext
+            {
+                View = this,
+                Camera = Camera,
+                Framebuffer = MainFramebuffer,
+                Scene = Scene,
+            };
+
+            UpdateSceneBuffersGpu(Scene, Camera);
+            lightingBuffer.Data = Scene.LightingInfo.LightingData;
+
+            Scene.RenderOpaqueLayer(renderContext);
+            Scene.RenderTranslucentLayer(renderContext);
         }
 
         private void RenderScenesWithView(Scene.RenderContext renderContext)
@@ -351,6 +363,10 @@ namespace GUI.Types.Renderer
                     Skybox2D.Render();
                 }
             }
+            else
+            {
+                baseBackground.Render();
+            }
 
             GL.DepthRange(0.05, 1);
 
@@ -370,6 +386,11 @@ namespace GUI.Types.Renderer
             ShowBaseGrid = true;
 
             AddCheckBox("Show Grid", ShowBaseGrid, (v) => ShowBaseGrid = v);
+            AddCheckBox("Show Light Background", ShowLightBackground, (v) =>
+            {
+                ShowLightBackground = v;
+                baseBackground.SetLightBackground(ShowLightBackground);
+            });
         }
 
         protected void AddWireframeToggleControl()

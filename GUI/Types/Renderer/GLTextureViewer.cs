@@ -176,6 +176,7 @@ namespace GUI.Types.Renderer
                 Width = 200,
             });
 
+            ComboBox cubemapProjectionComboBox = null;
             CheckBox softwareDecodeCheckBox = null;
 
             if (textureData.NumMipLevels > 1)
@@ -214,7 +215,7 @@ namespace GUI.Types.Renderer
             {
                 ComboBox cubeFaceComboBox = null;
 
-                var equirectangularProjectionCheckBox = AddSelection("Projection type", (name, index) =>
+                cubemapProjectionComboBox = AddSelection("Projection type", (name, index) =>
                 {
                     cubeFaceComboBox.Enabled = index == 0;
 
@@ -248,8 +249,8 @@ namespace GUI.Types.Renderer
                 cubeFaceComboBox.Items.AddRange(Enum.GetNames<CubemapFace>());
                 cubeFaceComboBox.SelectedIndex = 0;
 
-                equirectangularProjectionCheckBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
-                equirectangularProjectionCheckBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
+                cubemapProjectionComboBox.Items.AddRange(Enum.GetNames<CubemapProjection>());
+                cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.Equirectangular;
             }
 
             decodeFlagsListBox = AddMultiSelection("Texture Conversion",
@@ -270,6 +271,19 @@ namespace GUI.Types.Renderer
             var forceSoftwareDecode = textureData.IsRawJpeg || textureData.IsRawPng;
             softwareDecodeCheckBox = AddCheckBox("Software decode", forceSoftwareDecode, (state) =>
             {
+                if ((textureData.Flags & VTexFlags.CUBE_TEXTURE) != 0)
+                {
+                    if (state)
+                    {
+                        cubemapProjectionComboBox.SelectedIndex = (int)CubemapProjection.None;
+                        cubemapProjectionComboBox.Enabled = false;
+                    }
+                    else
+                    {
+                        cubemapProjectionComboBox.Enabled = true;
+                    }
+                }
+
                 SetupTexture(state);
             });
 
@@ -408,7 +422,7 @@ namespace GUI.Types.Renderer
             var t = pixmap.Encode(fs, format, 100);
         }
 
-        private SKBitmap ReadPixelsToBitmap()
+        protected override SKBitmap ReadPixelsToBitmap()
         {
             var size = ActualTextureSize;
             var bitmap = new SKBitmap((int)size.X, (int)size.Y, SKColorType.Bgra8888, SKAlphaType.Unpremul);
@@ -485,19 +499,6 @@ namespace GUI.Types.Renderer
             if (e.KeyData == (Keys.Control | Keys.S))
             {
                 OnSaveButtonClick(null, null);
-                return;
-            }
-
-            if (e.KeyData == (Keys.Control | Keys.C))
-            {
-                var title = Program.MainForm.Text;
-                Program.MainForm.Text = "Source 2 Viewer - Copying image to clipboard…";
-
-                using var bitmap = ReadPixelsToBitmap();
-                ClipboardSetImage(bitmap);
-
-                Program.MainForm.Text = title;
-
                 return;
             }
 
@@ -700,12 +701,13 @@ namespace GUI.Types.Renderer
                 OriginalHeight = texture.Height;
             }
 
-            if (shader != null)
+            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
+
+            if (shader != null && shader.Parameters.ContainsKey(textureType))
             {
                 return;
             }
 
-            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
             var arguments = new Dictionary<string, byte>
             {
                 [textureType] = 1,
@@ -929,23 +931,6 @@ namespace GUI.Types.Renderer
             var scale = float.Lerp(TextureScaleOld, TextureScale, time);
 
             return (scale, position);
-        }
-
-        private static void ClipboardSetImage(SKBitmap bitmap)
-        {
-            var data = new DataObject();
-
-            using var bitmapWindows = bitmap.ToBitmap();
-            data.SetData(DataFormats.Bitmap, true, bitmapWindows);
-
-            using var pngStream = new MemoryStream();
-            using var pixels = bitmap.PeekPixels();
-            var png = pixels.Encode(pngStream, new SKPngEncoderOptions(SKPngEncoderFilterFlags.Sub, zLibLevel: 1));
-
-            bitmapWindows.Save(pngStream, System.Drawing.Imaging.ImageFormat.Png);
-            data.SetData("PNG", false, pngStream);
-
-            Clipboard.SetDataObject(data, copy: true);
         }
     }
 }

@@ -4,8 +4,8 @@ using System.Text;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Blocks.ResourceEditInfoStructs;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat
@@ -279,14 +279,19 @@ namespace ValveResourceFormat
 
                         EditInfo = (ResourceEditInfo)block;
 
-                        // Try to determine resource type by looking at first compiler indentifier
+                        // Try to determine resource type by looking at the compiler indentifiers
                         if (ResourceType == ResourceType.Unknown && EditInfo.Structs.TryGetValue(ResourceEditInfo.REDIStruct.SpecialDependencies, out var specialBlock))
                         {
                             var specialDeps = (SpecialDependencies)specialBlock;
 
-                            if (specialDeps.List.Count > 0)
+                            foreach (var specialDep in specialDeps.List)
                             {
-                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDeps.List[0]);
+                                ResourceType = DetermineResourceTypeByCompilerIdentifier(specialDep);
+
+                                if (ResourceType != ResourceType.Unknown)
+                                {
+                                    break;
+                                }
                             }
                         }
 
@@ -512,7 +517,7 @@ namespace ValveResourceFormat
                 return ResourceType.Unknown;
             }
 
-            extension = extension.EndsWith("_c", StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
+            extension = extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal) ? extension[1..^2] : extension[1..];
 
             var fields = typeof(ResourceType).GetFields(BindingFlags.Public | BindingFlags.Static);
 

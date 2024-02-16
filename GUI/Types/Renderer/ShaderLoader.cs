@@ -24,7 +24,7 @@ namespace GUI.Types.Renderer
         public int ShaderCount => CachedShaders.Count;
         private readonly Dictionary<string, HashSet<string>> ShaderDefines = [];
 
-        private readonly static Dictionary<string, byte> EmptyArgs = new(0);
+        private readonly static Dictionary<string, byte> EmptyArgs = [];
 
         private readonly ShaderParser Parser = new();
 
@@ -206,6 +206,7 @@ namespace GUI.Types.Renderer
         // Map Valve's shader names to shader files VRF has
         private static string GetShaderFileByName(string shaderName) => shaderName switch
         {
+            "vrf.background" => "background",
             "vrf.default" => "default",
             "vrf.grid" => "grid",
             "vrf.picking" => "picking",
@@ -333,6 +334,7 @@ namespace GUI.Types.Renderer
                 shader.Program = newShader.Program;
                 shader.RenderModes.Clear();
                 shader.RenderModes.UnionWith(newShader.RenderModes);
+                shader.ClearUniformsCache();
             }
         }
 

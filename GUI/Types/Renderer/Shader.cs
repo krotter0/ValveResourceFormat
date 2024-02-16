@@ -11,7 +11,7 @@ namespace GUI.Types.Renderer
         public HashSet<string> RenderModes { get; init; }
         public HashSet<string> SrgbSamplers { get; init; }
 
-        private Dictionary<string, int> Uniforms { get; } = [];
+        private readonly Dictionary<string, int> Uniforms = [];
         public RenderMaterial Default;
 
 #if DEBUG
@@ -35,8 +35,12 @@ namespace GUI.Types.Renderer
             for (var i = 0; i < count; i++)
             {
                 var uniformName = GL.GetActiveUniform(Program, i, out var size, out var uniformType);
+                var uniformLocation = GL.GetUniformLocation(Program, uniformName);
 
-                Uniforms[uniformName] = GL.GetUniformLocation(Program, uniformName);
+                if (uniformLocation > -1)
+                {
+                    Uniforms[uniformName] = uniformLocation;
+                }
 
                 yield return (uniformName, i, uniformType, size);
             }
@@ -169,5 +173,9 @@ namespace GUI.Types.Renderer
             GL.BindTextureUnit(slot, texture.Handle);
             GL.ProgramUniform1(Program, uniformLocation, slot);
         }
+
+#if DEBUG
+        public void ClearUniformsCache() => Uniforms.Clear();
+#endif
     }
 }

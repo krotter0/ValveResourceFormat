@@ -10,7 +10,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
@@ -21,7 +20,7 @@ namespace GUI.Types.Viewers
             return magic == ValveResourceFormat.Resource.KnownHeaderVersion;
         }
 
-        public TabPage Create(VrfGuiContext vrfGuiContext, byte[] input)
+        public TabPage Create(VrfGuiContext vrfGuiContext, Stream stream)
         {
             var tab = new TabPage();
             var resourceTemp = new ValveResourceFormat.Resource
@@ -32,9 +31,9 @@ namespace GUI.Types.Viewers
 
             try
             {
-                if (input != null)
+                if (stream != null)
                 {
-                    resource.Read(new MemoryStream(input));
+                    resource.Read(stream);
                 }
                 else
                 {
@@ -337,7 +336,7 @@ namespace GUI.Types.Viewers
 
                 Log.Debug(nameof(Resource), $"Opening {name} from external refs");
 
-                var foundFile = guiFileLoader.FindFileWithContext(name + "_c");
+                var foundFile = guiFileLoader.FindFileWithContext(name + GameFileLoader.CompiledFileSuffix);
                 if (foundFile.Context == null)
                 {
                     foundFile = guiFileLoader.FindFileWithContext(name);
