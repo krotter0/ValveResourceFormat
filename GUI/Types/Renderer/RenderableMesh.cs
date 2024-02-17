@@ -6,6 +6,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
+using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 
 namespace GUI.Types.Renderer
@@ -174,7 +175,7 @@ namespace GUI.Types.Renderer
 #endif
         }
 
-        private void ConfigureDrawCalls(Scene scene, VBIB vbib, IKeyValueCollection[] sceneObjects, Dictionary<string, string> materialReplacementTable)
+        private void ConfigureDrawCalls(Scene scene, VBIB vbib, KVObject[] sceneObjects, Dictionary<string, string> materialReplacementTable)
         {
             if (vbib.VertexBuffers.Count == 0)
             {
@@ -271,34 +272,20 @@ namespace GUI.Types.Renderer
             DrawCallsBlended.TrimExcess();
         }
 
-        private DrawCall CreateDrawCall(IKeyValueCollection objectDrawCall, RenderMaterial material, VBIB vbib)
+        private DrawCall CreateDrawCall(KVObject objectDrawCall, RenderMaterial material, VBIB vbib)
         {
             var drawCall = new DrawCall()
             {
                 Material = material,
             };
 
-            var primitiveType = objectDrawCall.GetProperty<object>("m_nPrimitiveType");
+            var primitiveType = objectDrawCall.GetEnumValue<RenderPrimitiveType>("m_nPrimitiveType");
 
-            if (primitiveType is byte primitiveTypeByte)
+            drawCall.PrimitiveType = primitiveType switch
             {
-                if ((RenderPrimitiveType)primitiveTypeByte == RenderPrimitiveType.RENDER_PRIM_TRIANGLES)
-                {
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                }
-            }
-            else if (primitiveType is string primitiveTypeString)
-            {
-                if (primitiveTypeString == "RENDER_PRIM_TRIANGLES")
-                {
-                    drawCall.PrimitiveType = PrimitiveType.Triangles;
-                }
-            }
-
-            if (drawCall.PrimitiveType != PrimitiveType.Triangles)
-            {
-                throw new NotImplementedException("Unknown PrimitiveType in drawCall! (" + primitiveType + ")");
-            }
+                RenderPrimitiveType.RENDER_PRIM_TRIANGLES => PrimitiveType.Triangles,
+                _ => throw new NotImplementedException($"Unknown PrimitiveType in drawCall! {primitiveType}"),
+            };
 
             // Index buffer
             {
