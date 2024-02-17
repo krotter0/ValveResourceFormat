@@ -14,7 +14,7 @@ namespace ValveResourceFormat.ResourceTypes
         public class Entity
         {
             public Dictionary<uint, EntityProperty> Properties { get; } = [];
-            public List<IKeyValueCollection> Connections { get; internal set; }
+            public List<KVObject> Connections { get; internal set; }
 
             public T GetProperty<T>(string name)
                 => GetProperty<T>(StringToken.Get(name));
@@ -76,7 +76,7 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(ParseEntityProperties)
                 .ToList();
 
-        private static Entity ParseEntityProperties(IKeyValueCollection entityKv)
+        private static Entity ParseEntityProperties(KVObject entityKv)
         {
             var connections = entityKv.GetArray("m_connections");
             Entity entity;
@@ -98,7 +98,7 @@ namespace ValveResourceFormat.ResourceTypes
             return entity;
         }
 
-        private static Entity ParseEntityPropertiesKV3(IKeyValueCollection entityKv)
+        private static Entity ParseEntityPropertiesKV3(KVObject entityKv)
         {
             var entityVersion = entityKv.GetInt32Property("version");
 
@@ -133,14 +133,14 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (value.Value.Type == KVType.ARRAY)
                 {
-                    var arrayKv = (IKeyValueCollection)value.Value.Value;
+                    var arrayKv = (KVObject)value.Value.Value;
 
-                    type = arrayKv.Count() switch
+                    type = arrayKv.Count switch
                     {
                         2 => EntityFieldType.Vector2d, // Did binary entity lumps not store vec2?
                         3 => EntityFieldType.Vector,
                         4 => EntityFieldType.Vector4D,
-                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count()}"),
+                        _ => throw new NotImplementedException($"Unsupported array length of {arrayKv.Count}"),
                     };
                     data = type switch
                     {
