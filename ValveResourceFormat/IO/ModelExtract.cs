@@ -575,7 +575,7 @@ public class ModelExtract
             }
 
             var genericDataClasses = new string[] { "prop_data", "character_arm_config", };
-            var genericDataClassesList = new string[] { "ao_proxy_capsule", };
+            var genericDataClassesList = new string[] { "ao_proxy_capsule", "ao_proxy_box", };
 
             foreach (var genericDataClass in genericDataClasses)
             {
