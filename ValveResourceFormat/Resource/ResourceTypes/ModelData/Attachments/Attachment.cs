@@ -7,7 +7,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 {
     public class Attachment : IEnumerable<Attachment.Influence>
     {
-        public struct Influence
+        public readonly struct Influence
         {
             public string Name { get; init; }
             public Vector3 Offset { get; init; }
@@ -18,7 +18,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
         public string Name { get; init; }
         public bool IgnoreRotation { get; init; }
 
-        private readonly Influence[] influences;
+        [System.Runtime.CompilerServices.InlineArray(3)]
+        private struct Influence3
+        {
+            private Influence influence;
+        }
+        private Influence3 influences;
+
         public Influence this[int i]
         {
             get
@@ -26,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
                 return influences[i];
             }
         }
-        public int Length => influences.Length;
+        public int Length { get; init; }
 
         public Attachment(KVObject attachmentData)
         {
@@ -40,10 +46,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
             var influenceOffsets = valueData.GetArray("m_vInfluenceOffsets", v => v.ToVector3());
             var influenceWeights = valueData.GetArray<double>("m_influenceWeights");
 
-            var influenceCount = valueData.GetInt32Property("m_nInfluences");
+            Length = valueData.GetInt32Property("m_nInfluences");
 
-            influences = new Influence[influenceCount];
-            for (var i = 0; i < influenceCount; i++)
+            for (var i = 0; i < Length; i++)
             {
                 influences[i] = new Influence
                 {
@@ -57,7 +62,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 
         public IEnumerator<Influence> GetEnumerator()
         {
-            for (var i = 0; i < influences.Length; i++)
+            for (var i = 0; i < Length; i++)
             {
                 yield return influences[i];
             }
