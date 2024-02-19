@@ -276,7 +276,7 @@ public class ModelExtract
 
             foreach (var attachment in attachments)
             {
-                var mainInfluence = attachment[attachment.Length - 1];
+                var mainInfluence = attachment.Influences[attachment.Length - 1];
 
                 var node = MakeNode("Attachment",
                     ("name", attachment.Name),
@@ -292,7 +292,7 @@ public class ModelExtract
                     var children = new KVObject(null, true, attachment.Length - 1);
                     for (var i = 0; i < attachment.Length - 1; i++)
                     {
-                        var influence = attachment[i];
+                        var influence = attachment.Influences[i];
                         var childNode = MakeNode("AttachmentInfluence",
                             ("parent_bone", influence.Name),
                             ("relative_origin", influence.Offset),

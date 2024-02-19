@@ -19,19 +19,12 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
         public bool IgnoreRotation { get; init; }
 
         [System.Runtime.CompilerServices.InlineArray(3)]
-        private struct Influence3
+        public struct Influence3
         {
             private Influence influence;
         }
-        private Influence3 influences;
+        public Influence3 Influences;
 
-        public Influence this[int i]
-        {
-            get
-            {
-                return influences[i];
-            }
-        }
         public int Length { get; init; }
 
         public Attachment(KVObject attachmentData)
@@ -50,7 +43,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
 
             for (var i = 0; i < Length; i++)
             {
-                influences[i] = new Influence
+                Influences[i] = new Influence
                 {
                     Name = influenceNames[i],
                     Rotation = influenceRotations[i],
@@ -64,7 +57,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData.Attachments
         {
             for (var i = 0; i < Length; i++)
             {
-                yield return influences[i];
+                yield return Influences[i];
             }
         }
 
