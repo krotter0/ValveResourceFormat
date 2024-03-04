@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
@@ -6,6 +7,7 @@ namespace GUI.Types.Renderer
 {
     static class MeshBatchRenderer
     {
+        [DebuggerDisplay("{Node.DebugName,nq}")]
         public struct Request
         {
             public Matrix4x4 Transform;
@@ -126,11 +128,13 @@ namespace GUI.Types.Renderer
                     GL.BindVertexArray(vao);
                 }
 
-                if (material != request.Call.Material)
+                var requestMaterial = request.Call.Material;
+
+                if (material != requestMaterial)
                 {
                     material?.PostRender();
 
-                    var requestShader = context.ReplacementShader ?? request.Call.Material.Shader;
+                    var requestShader = context.ReplacementShader ?? requestMaterial.Shader;
 
                     // If the material did not change, shader could not have changed
                     if (shader != requestShader)
@@ -185,7 +189,7 @@ namespace GUI.Types.Renderer
                         context.Scene.FogInfo.SetCubemapFogTexture(shader);
                     }
 
-                    material = request.Call.Material;
+                    material = requestMaterial;
                     material.Render(shader);
                 }
 

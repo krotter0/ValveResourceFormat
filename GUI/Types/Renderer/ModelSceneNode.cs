@@ -38,6 +38,7 @@ namespace GUI.Types.Renderer
         private readonly List<RenderableMesh> meshRenderers = [];
         private readonly List<Animation> animations = [];
 
+        public bool IsAnimated => animationTexture != null;
         private RenderTexture animationTexture;
         private readonly int bonesCount;
 
@@ -91,7 +92,7 @@ namespace GUI.Types.Renderer
 
             var frame = AnimationController.GetFrame();
 
-            if (animationTexture != null)
+            if (IsAnimated)
             {
                 // Update animation matrices
 
@@ -227,7 +228,11 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                meshRenderers.Add(new RenderableMesh((Mesh)newResource.DataBlock, refMesh.MeshIndex, Scene, model, materialTable, debugLabel: Path.GetFileName(refMesh.MeshName)));
+                var mesh = (Mesh)newResource.DataBlock;
+                mesh.LoadExternalMorphData(Scene.GuiContext.FileLoader);
+                model.SetExternalMeshData(mesh);
+
+                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable, debugLabel: Path.GetFileName(refMesh.MeshName)));
             }
 
             // Set active meshes to default

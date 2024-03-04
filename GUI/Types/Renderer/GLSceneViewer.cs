@@ -42,6 +42,15 @@ namespace GUI.Types.Renderer
         private OctreeDebugRenderer<SceneNode> dynamicOctreeRenderer;
         protected SelectedNodeRenderer selectedNodeRenderer;
 
+        public enum DepthOnlyProgram
+        {
+            Static,
+            StaticAlphaTest,
+            Animated,
+        }
+        private readonly Shader[] depthOnlyShaders = new Shader[Enum.GetValues<DepthOnlyProgram>().Length];
+        public Framebuffer ShadowDepthBuffer { get; private set; }
+
         protected GLSceneViewer(VrfGuiContext guiContext, Frustum cullFrustum) : base(guiContext)
         {
             Scene = new Scene(guiContext);
@@ -167,11 +176,13 @@ namespace GUI.Types.Renderer
 
         public virtual void PostSceneLoad()
         {
+            Scene.UpdateOctrees();
             Scene.CalculateLightProbeBindings();
             Scene.CalculateEnvironmentMaps();
 
             if (SkyboxScene != null)
             {
+                SkyboxScene.UpdateOctrees();
                 SkyboxScene.CalculateLightProbeBindings();
                 SkyboxScene.CalculateEnvironmentMaps();
             }
@@ -219,6 +230,30 @@ namespace GUI.Types.Renderer
 
             Picker = new PickingTexture(Scene.GuiContext, OnPicked);
 
+            var shadowQuality = this switch
+            {
+                GLSingleNodeViewer => 1024,
+                _ => 2048,
+            };
+
+            ShadowDepthBuffer = Framebuffer.Prepare(shadowQuality, shadowQuality, 0, null, Framebuffer.DepthAttachmentFormat.Depth32F);
+            ShadowDepthBuffer.Initialize();
+            ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
+            GL.DrawBuffer(DrawBufferMode.None);
+            GL.ReadBuffer(ReadBufferMode.None);
+            Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
+
+            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureBaseLevel, 0);
+            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureMaxLevel, 0);
+            GL.TextureParameter(ShadowDepthBuffer.Depth.Handle, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+            ShadowDepthBuffer.Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            ShadowDepthBuffer.Depth.SetWrapMode(TextureWrapMode.ClampToBorder);
+
+            depthOnlyShaders[(int)DepthOnlyProgram.Static] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only");
+            //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "F_ALPHA_TEST", 1 } });
+            depthOnlyShaders[(int)DepthOnlyProgram.Animated] = GuiContext.ShaderLoader.LoadShader("vrf.depth_only", new Dictionary<string, byte> { { "D_ANIMATED", 1 } });
+
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             CreateBuffers();
 
             var timer = Stopwatch.StartNew();
@@ -254,6 +289,7 @@ namespace GUI.Types.Renderer
 
                 selectedNodeRenderer.Update(new Scene.UpdateContext(e.FrameTime));
 
+                Scene.SetupSceneShadows(Camera, depthOnlyShaders);
                 Scene.CollectSceneDrawCalls(Camera, lockedCullFrustum);
                 SkyboxScene?.CollectSceneDrawCalls(Camera, lockedCullFrustum);
             }
@@ -274,6 +310,7 @@ namespace GUI.Types.Renderer
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
 
+                RenderSceneShadows(renderContext);
                 RenderScenesWithView(renderContext);
             }
 
@@ -315,6 +352,29 @@ namespace GUI.Types.Renderer
             Scene.RenderTranslucentLayer(renderContext);
         }
 
+        private void RenderSceneShadows(Scene.RenderContext renderContext)
+        {
+            GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
+            ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
+            GL.Disable(EnableCap.CullFace);
+            GL.DepthRange(0, 1);
+            GL.PolygonOffsetClamp(1, 0.05f, 1);
+            GL.Clear(ClearBufferMask.DepthBufferBit);
+
+            renderContext.Framebuffer = ShadowDepthBuffer;
+            renderContext.Scene = Scene;
+
+            viewBuffer.Data.ViewToProjection = Scene.LightingInfo.SunViewProjection;
+            var worldToShadow = Scene.LightingInfo.SunViewProjection;
+            worldToShadow.M33 *= 1.02f;
+            viewBuffer.Data.WorldToShadow = worldToShadow;
+            viewBuffer.Update();
+
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShaders);
+            GL.PolygonOffsetClamp(0, 0, 0);
+            GL.Enable(EnableCap.CullFace);
+        }
+
         private void RenderScenesWithView(Scene.RenderContext renderContext)
         {
             GL.Viewport(0, 0, renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
@@ -347,7 +407,7 @@ namespace GUI.Types.Renderer
                     renderContext.ReplacementShader?.SetUniform1("isSkybox", 1u);
 
                     SkyboxScene.RenderOpaqueLayer(renderContext);
-                    SkyboxScene.RenderTranslucentLayer(renderContext);
+                    RenderTranslucentLayer(SkyboxScene, renderContext);
 
                     lightingBuffer.Data = Scene.LightingInfo.LightingData;
                     renderContext.Scene = Scene;
@@ -372,13 +432,24 @@ namespace GUI.Types.Renderer
 
             using (new GLDebugGroup("Main Scene Translucent Render"))
             {
-                Scene.RenderTranslucentLayer(renderContext);
+                RenderTranslucentLayer(Scene, renderContext);
             }
 
             if (IsWireframe)
             {
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             }
+        }
+
+        private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
+        {
+            GL.DepthMask(false);
+            GL.Enable(EnableCap.Blend);
+
+            scene.RenderTranslucentLayer(renderContext);
+
+            GL.Disable(EnableCap.Blend);
+            GL.DepthMask(true);
         }
 
         protected void AddBaseGridControl()
@@ -449,7 +520,10 @@ namespace GUI.Types.Renderer
             Scene.SetEnabledLayers(layers);
             SkyboxScene?.SetEnabledLayers(layers);
 
-            staticOctreeRenderer = new OctreeDebugRenderer<SceneNode>(Scene.StaticOctree, Scene.GuiContext, false);
+            if (showStaticOctree)
+            {
+                staticOctreeRenderer.Rebuild();
+            }
         }
 
         private void SetRenderMode(string renderMode)

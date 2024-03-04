@@ -628,9 +628,13 @@ namespace GUI
 
             if (entry != null)
             {
-                stream = vrfGuiContext.ParentGuiContext.CurrentPackage.GetMemoryMappedStreamIfPossible(entry);
-                stream.Read(magicData);
-                stream.Seek(-magicData.Length, SeekOrigin.Current);
+                stream = AdvancedGuiFileLoader.GetPackageEntryStream(vrfGuiContext.ParentGuiContext.CurrentPackage, entry);
+
+                if (stream.Length >= magicData.Length)
+                {
+                    stream.Read(magicData);
+                    stream.Seek(-magicData.Length, SeekOrigin.Current);
+                }
             }
             else
             {

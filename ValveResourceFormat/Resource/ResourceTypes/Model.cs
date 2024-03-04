@@ -1,7 +1,10 @@
+using System.IO;
 using System.Linq;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelData;
+using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -31,6 +34,8 @@ namespace ValveResourceFormat.ResourceTypes
         private Skeleton cachedSkeleton { get; set; }
         private FlexController[] cachedFlexControllers { get; set; }
         private readonly Dictionary<(VBIB VBIB, int MeshIndex), VBIB> remappedVBIBCache = [];
+        public Dictionary<string, Hitbox[]> HitboxSets { get; private set; }
+        public Dictionary<string, Attachment> Attachments { get; private set; }
 
         private FlexController[] GetFlexControllers()
         {
@@ -52,14 +57,28 @@ namespace ValveResourceFormat.ResourceTypes
             return flexControllers.ToArray();
         }
 
+        public override void Read(BinaryReader reader, Resource resource)
+        {
+            base.Read(reader, resource);
+
+            if (Resource.GetBlockByType(BlockType.MDAT) is Mesh mesh)
+            {
+                HitboxSets = mesh.HitboxSets;
+                Attachments = mesh.Attachments;
+            }
+        }
+
         public void SetExternalMorphData(Morph morph)
         {
-            if (morph == null)
-            {
-                return;
-            }
+            cachedFlexControllers ??= morph?.FlexControllers;
+        }
 
-            cachedFlexControllers = morph.FlexControllers;
+        public void SetExternalMeshData(Mesh mesh)
+        {
+            SetExternalMorphData(mesh.MorphData);
+
+            HitboxSets ??= mesh.HitboxSets;
+            Attachments ??= mesh.Attachments;
         }
 
         public void SetSkeletonFilteredForLod0()
@@ -214,6 +233,31 @@ namespace ValveResourceFormat.ResourceTypes
             return Animation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
         }
 
+        public IEnumerable<Animation> GetReferencedAnimations(IFileLoader fileLoader)
+        {
+            var refAnimModels = Data.GetArray<string>("m_refAnimIncludeModels");
+            if (refAnimModels == null || refAnimModels.Length == 0)
+            {
+                return [];
+            }
+
+            var allAnims = new List<Animation>();
+            foreach (var modelName in refAnimModels)
+            {
+                if (string.IsNullOrEmpty(modelName))
+                {
+                    continue;
+                }
+                using var resource = fileLoader.LoadFileCompiled(modelName);
+                var model = (Model)resource.DataBlock;
+                model.cachedSkeleton = Skeleton;
+                var anims = model.GetAllAnimations(fileLoader);
+                allAnims.AddRange(anims);
+            }
+
+            return allAnims;
+        }
+
         public IEnumerable<Animation> GetAllAnimations(IFileLoader fileLoader)
         {
             if (CachedAnimations != null)
@@ -227,12 +271,15 @@ namespace ValveResourceFormat.ResourceTypes
             // Load animations from referenced animation groups
             foreach (var animGroupPath in animGroupPaths)
             {
-                var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
+                using var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
                 if (animGroup != default)
                 {
                     animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));
                 }
             }
+
+            var referencedAnims = GetReferencedAnimations(fileLoader);
+            animations.AddRange(referencedAnims);
 
             CachedAnimations = [.. animations];
 

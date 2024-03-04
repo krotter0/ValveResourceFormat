@@ -1,41 +1,20 @@
 using System.Linq;
-using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
-    class PhysSceneNode : SceneNode
+    class PhysSceneNode : ShapeSceneNode
     {
+        public override bool LayerEnabled => Enabled && base.LayerEnabled;
         public bool Enabled { get; set; }
         public string PhysGroupName { get; set; }
 
-        readonly Shader shader;
-        readonly int indexCount;
-        readonly int vaoHandle;
-
-        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds)
-            : base(scene)
+        public PhysSceneNode(Scene scene, List<SimpleVertex> verts, List<int> inds) : base(scene, verts, inds)
         {
-            indexCount = inds.Count;
-            shader = Scene.GuiContext.ShaderLoader.LoadShader("vrf.default");
-
-            GL.CreateVertexArrays(1, out vaoHandle);
-            GL.CreateBuffers(1, out int vboHandle);
-            GL.CreateBuffers(1, out int iboHandle);
-            GL.VertexArrayVertexBuffer(vaoHandle, 0, vboHandle, 0, SimpleVertex.SizeInBytes);
-            GL.VertexArrayElementBuffer(vaoHandle, iboHandle);
-            SimpleVertex.BindDefaultShaderLayout(vaoHandle, shader.Program);
-
-            GL.NamedBufferData(vboHandle, verts.Count * SimpleVertex.SizeInBytes, verts.ToArray(), BufferUsageHint.StaticDraw);
-            GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), inds.ToArray(), BufferUsageHint.StaticDraw);
-
-#if DEBUG
-            var vaoLabel = nameof(PhysSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
+
 
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string fileName)
         {
@@ -72,7 +51,7 @@ namespace GUI.Types.Renderer
                         center = Vector3.Transform(center, bindPose[p]);
                     }
 
-                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius);
+                    AddSphere(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center, radius, new(1f, 1f, 0f, 0.3f));
 
                     var bbox = new AABB(center + new Vector3(radius),
                                         center - new Vector3(radius));
@@ -102,7 +81,7 @@ namespace GUI.Types.Renderer
                         center[1] = Vector3.Transform(center[1], bindPose[p]);
                     }
 
-                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius);
+                    AddCapsule(verts[collisionAttributeIndex], inds[collisionAttributeIndex], center[0], center[1], radius, new(1f, 1f, 0f, 0.3f));
                     foreach (var cn in center)
                     {
                         var bbox = new AABB(cn + new Vector3(radius),
@@ -161,12 +140,12 @@ namespace GUI.Types.Renderer
                                 break;
                             }
 
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[edge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[nextEdge].Origin);
-                            inds[collisionAttributeIndex].Add(baseVertex + edges[startEdge].Origin);
+                            AddTriangle(
+                                inds[collisionAttributeIndex],
+                                baseVertex,
+                                edges[startEdge].Origin,
+                                edges[edge].Origin,
+                                edges[nextEdge].Origin);
 
                             edge = nextEdge;
                         }
@@ -214,12 +193,7 @@ namespace GUI.Types.Renderer
 
                     foreach (var tri in triangles)
                     {
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Y);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.Z);
-                        inds[collisionAttributeIndex].Add(baseVertex + tri.X);
+                        AddTriangle(inds[collisionAttributeIndex], baseVertex, tri.X, tri.Y, tri.Z);
                     }
 
                     var bbox = new AABB(mesh.Shape.Min, mesh.Shape.Max);
@@ -282,106 +256,6 @@ namespace GUI.Types.Renderer
                 return physSceneNode;
             }).ToArray();
             return nodes;
-        }
-
-        private static void AddCapsule(List<SimpleVertex> verts, List<int> inds, Vector3 c0, Vector3 c1, float radius)
-        {
-            var mtx = Matrix4x4.CreateLookAt(c0, c1, Vector3.UnitY);
-            mtx.Translation = Vector3.Zero;
-            AddSphere(verts, inds, c0, radius);
-            AddSphere(verts, inds, c1, radius);
-
-            var baseVertex = verts.Count;
-
-            for (var i = 0; i < 4; i++)
-            {
-                var vr = new Vector3(
-                    MathF.Cos(i * MathF.PI / 2) * radius,
-                    MathF.Sin(i * MathF.PI / 2) * radius,
-                    0);
-                vr = Vector3.Transform(vr, mtx);
-                var v = vr + c0;
-
-                //color red
-                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
-                verts.Add(new(vr + c1, new(1f, 0f, 0f, 1f)));
-
-                inds.Add(baseVertex + i * 2);
-                inds.Add(baseVertex + i * 2 + 1);
-                inds.Add(baseVertex + i * 2);
-            }
-        }
-
-        private static void AddSphere(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius)
-        {
-            verts.EnsureCapacity(verts.Count + 16 * 3);
-            inds.EnsureCapacity(inds.Count + 16 * 3 * 2);
-
-            AddCircle(verts, inds, center, radius, Matrix4x4.Identity);
-            AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationX(MathF.PI * 0.5f));
-            AddCircle(verts, inds, center, radius, Matrix4x4.CreateRotationY(MathF.PI * 0.5f));
-        }
-
-        private static void AddCircle(List<SimpleVertex> verts, List<int> inds, Vector3 center, float radius, Matrix4x4 mtx)
-        {
-            var baseVertex = verts.Count;
-            for (var i = 0; i < 16; i++)
-            {
-                var v = new Vector3(
-                    MathF.Cos(i * MathF.PI / 8) * radius,
-                    MathF.Sin(i * MathF.PI / 8) * radius,
-                    0);
-                v = Vector3.Transform(v, mtx) + center;
-
-                // color red
-                verts.Add(new(v, new(1f, 0f, 0f, 1f)));
-
-                inds.Add(baseVertex + i);
-                inds.Add(baseVertex + (i + 1) % 16);
-            }
-        }
-
-        public override void Render(Scene.RenderContext context)
-        {
-            if (!Enabled)
-            {
-                return;
-            }
-
-            var renderShader = context.ReplacementShader ?? shader;
-
-            GL.DepthMask(false);
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            GL.UseProgram(renderShader.Program);
-
-            renderShader.SetUniform4x4("transform", Transform);
-            renderShader.SetUniform1("bAnimated", 0.0f);
-            renderShader.SetUniform1("sceneObjectId", Id);
-
-            GL.BindVertexArray(vaoHandle);
-
-            GL.Enable(EnableCap.PolygonOffsetLine);
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 96, 0.0005f);
-
-            //GL.LineWidth(1.5f);
-            GL.DrawElements(PrimitiveType.Lines, indexCount, DrawElementsType.UnsignedInt, 0);
-
-            // triangles
-            GL.Disable(EnableCap.CullFace);
-            GL.DrawElements(PrimitiveType.TrianglesAdjacency, indexCount, DrawElementsType.UnsignedInt, 0);
-
-            GL.Disable(EnableCap.Blend);
-            GL.Disable(EnableCap.PolygonOffsetLine);
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 0, 0);
-            GL.Disable(EnableCap.CullFace);
-            GL.DepthMask(true);
-
-            GL.UseProgram(0);
-            GL.BindVertexArray(0);
         }
 
         public override void Update(Scene.UpdateContext context)
