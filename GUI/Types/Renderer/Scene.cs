@@ -242,6 +242,7 @@ namespace GUI.Types.Renderer
         }
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
+        private readonly List<RenderableMesh> listWithSingleMesh = [null];
         private Dictionary<DepthOnlyProgram, List<MeshBatchRenderer.Request>> CulledShadowDrawCalls { get; } = new()
         {
             [DepthOnlyProgram.Static] = [],
@@ -249,7 +250,7 @@ namespace GUI.Types.Renderer
             [DepthOnlyProgram.Animated] = [],
         };
 
-        public void SetupSceneShadows(Camera camera, Span<Shader> depthOnlyShaders)
+        public void SetupSceneShadows(Camera camera)
         {
             if (!LightingInfo.EnableDynamicShadows)
             {
@@ -272,8 +273,6 @@ namespace GUI.Types.Renderer
             }
 
             DynamicOctree.Root.Query(LightingInfo.SunLightFrustum, CulledShadowNodes);
-
-            List<RenderableMesh> listWithSingleMesh = [null];
 
             foreach (var node in CulledShadowNodes)
             {
@@ -435,7 +434,7 @@ namespace GUI.Types.Renderer
                     continue;
                 }
 
-                if (LightingInfo.LightProbeType == LightProbeType.IndividualProbesIrradianceOnly && precomputedHandshake <= LightingInfo.LightProbes.Count)
+                if (LightingInfo.LightmapGameVersionNumber == 0 && precomputedHandshake <= LightingInfo.LightProbes.Count)
                 {
                     // SteamVR Home node handshake as probe index
                     node.LightProbeBinding = LightingInfo.LightProbes[precomputedHandshake - 1];
@@ -453,16 +452,19 @@ namespace GUI.Types.Renderer
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
                 .ThenBy(static lpv => lpv.AtlasSize.LengthSquared());
 
+            var nodes = new List<SceneNode>();
+
             foreach (var probe in sortedLightProbes)
             {
-                var nodes = new List<SceneNode>();
                 StaticOctree.Root.Query(probe.BoundingBox, nodes);
-                DynamicOctree.Root.Query(probe.BoundingBox, nodes);
+                DynamicOctree.Root.Query(probe.BoundingBox, nodes); // TODO: This should actually be done dynamically
 
                 foreach (var node in nodes)
                 {
                     node.LightProbeBinding ??= probe;
                 }
+
+                nodes.Clear();
             }
         }
 
@@ -486,7 +488,9 @@ namespace GUI.Types.Renderer
                 _ => HandShakeCompare
             });
 
+            var nodes = new List<SceneNode>();
             var i = 0;
+
             foreach (var envMap in LightingInfo.EnvMaps)
             {
                 if (i >= LightingConstants.MAX_ENVMAPS)
@@ -500,14 +504,8 @@ namespace GUI.Types.Renderer
                     Debug.Assert(envMap.ArrayIndex == i, "Envmap array index mismatch");
                 }
 
-                var nodes = StaticOctree.Query(envMap.BoundingBox);
-
-                foreach (var node in nodes)
-                {
-                    node.EnvMaps.Add(envMap);
-                }
-
-                nodes = DynamicOctree.Query(envMap.BoundingBox); // TODO: This should actually be done dynamically
+                StaticOctree.Root.Query(envMap.BoundingBox, nodes);
+                DynamicOctree.Root.Query(envMap.BoundingBox, nodes); // TODO: This should actually be done dynamically
 
                 foreach (var node in nodes)
                 {
@@ -516,6 +514,8 @@ namespace GUI.Types.Renderer
 
                 UpdateGpuEnvmapData(envMap, i);
                 i++;
+
+                nodes.Clear();
             }
 
             foreach (var node in AllNodes)

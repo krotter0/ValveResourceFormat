@@ -110,13 +110,14 @@ public sealed class MapExtract
     {
         LumpFolder = GetLumpFolderFromVmapRERL(vmapResource.ExternalReferences);
 
-        var worldPath = Path.Combine(LumpFolder, "world.vwrld_c");
+        var worldPath = Path.Combine(LumpFolder, "world.vwrld");
         FolderExtractFilter.Add(worldPath);
-        using var worldResource = FileLoader.LoadFile(worldPath) ?? throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
+        using var worldResource = FileLoader.LoadFileCompiled(worldPath) ??
+            throw new FileNotFoundException($"Failed to find world resource, which is required for vmap_c extract, at {worldPath}");
         InitWorldExtract(worldResource);
     }
 
-    private static string GetLumpFolderFromVmapRERL(ResourceExtRefList rerl)
+    public static string GetLumpFolderFromVmapRERL(ResourceExtRefList rerl)
     {
         foreach (var info in rerl.ResourceRefInfoList)
         {
@@ -210,12 +211,15 @@ public sealed class MapExtract
     }
 
     // These appear in FGD as "auto_apply_material"
-    private static string GetToolTextureForEntity(string entityClassName)
+    public static string GetToolTextureForEntity(string entityClassName)
     {
         return entityClassName switch
         {
             "env_cs_place" => "materials/tools/tools_cs_place.vmat",
+            "func_nav_blocker" => "materials/tools/toolsnavattribute.vmat",
+            "func_nav_markup" => "materials/tools/toolsnavattribute.vmat",
             "post_processing_volume" => "materials/tools_postprocess_volume.vmat",
+            "trigger_no_wards" => "materials/tools/tools_no_wards.vmat",
             _ => "materials/tools/toolstrigger.vmat",
         };
     }
@@ -475,6 +479,16 @@ public sealed class MapExtract
             var propStatic = new CMapEntity()
                 .WithClassName("prop_static")
                 .WithProperty("model", modelName);
+
+            var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+            if (!objectTransform.IsIdentity)
+            {
+                Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation);
+
+                propStatic.Origin = translation;
+                propStatic.Angles = ModelExtract.ToEulerAngles(rotation);
+                propStatic.Scales = scales;
+            }
 
             var fadeStartDistance = sceneObject.GetProperty<double>("m_flFadeStartDistance");
             var fadeEndDistance = sceneObject.GetProperty<double>("m_flFadeEndDistance");
@@ -839,6 +853,8 @@ public sealed class MapExtract
 
             var key = property.Name;
             var value = PropertyToEditString(property);
+            value = RemoveTargetnamePrefix(value);
+
             mapEntity.EntityProperties.Add(key, value);
         }
 
@@ -850,7 +866,7 @@ public sealed class MapExtract
                 {
                     OutputName = connection.GetProperty<string>("m_outputName"),
                     TargetType = connection.GetInt32Property("m_targetType"),
-                    TargetName = connection.GetProperty<string>("m_targetName"),
+                    TargetName = RemoveTargetnamePrefix(connection.GetProperty<string>("m_targetName")),
                     InputName = connection.GetProperty<string>("m_inputName"),
                     OverrideParam = connection.GetProperty<string>("m_overrideParam"),
                     Delay = connection.GetFloatProperty("m_flDelay"),
@@ -945,10 +961,23 @@ public sealed class MapExtract
             string str => str,
             bool boolean => StringBool(boolean),
             Vector3 vector => $"{vector.X} {vector.Y} {vector.Z}",
+            Vector2 vector => $"{vector.X} {vector.Y}",
             byte[] color => $"{color[0]} {color[1]} {color[2]} {color[3]}",
             null => string.Empty,
             _ => data.ToString()
         };
+    }
+
+    private static string RemoveTargetnamePrefix(string value)
+    {
+        const string Prefix = "[PR#]";
+
+        if (!value.StartsWith(Prefix, StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        return value[Prefix.Length..];
     }
     #endregion Entities
 

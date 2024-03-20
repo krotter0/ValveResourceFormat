@@ -56,11 +56,13 @@ namespace GUI.Types.Renderer
                 renderable.SetMaterialForMaterialViewer(Resource);
             }
 
+            Scene.ShowToolsMaterials = true;
             Scene.Add(node, false);
 
 #if DEBUG
             // Assume cubemap model only has one opaque draw call
-            var drawCall = node.RenderableMeshes[0].DrawCallsOpaque[0];
+            var mesh = node.RenderableMeshes[0];
+            var drawCall = mesh.DrawCallsOpaque.Concat(mesh.DrawCallsBlended).First();
 
             foreach (var (paramName, initialValue) in drawCall.Material.Shader.Default.Material.FloatParams.OrderBy(x => x.Key))
             {

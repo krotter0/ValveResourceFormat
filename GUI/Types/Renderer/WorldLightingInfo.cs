@@ -16,10 +16,9 @@ partial class Scene
 
     public enum LightProbeType : byte
     {
-        IndividualProbesIrradianceOnly,
+        None,
         IndividualProbes,
         ProbeAtlas,
-        Unknown,
     }
 
     public class WorldLightingInfo(Scene scene)
@@ -43,14 +42,15 @@ partial class Scene
 
         public LightProbeType LightProbeType
         {
-            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber");
-            //set => scene.RenderAttributes["LightmapGameVersionNumber"] = (byte)value;
+            get => (LightProbeType)scene.RenderAttributes.GetValueOrDefault("SCENE_PROBE_TYPE");
+            set => scene.RenderAttributes["SCENE_PROBE_TYPE"] = (byte)value;
         }
 
         public bool HasBakedShadowsFromLightmap => scene.RenderAttributes.GetValueOrDefault("LightmapGameVersionNumber") > 0;
         public bool EnableDynamicShadows { get; set; } = true;
 
         public Matrix4x4 SunViewProjection { get; internal set; }
+        public float SunLightShadowBias { get; set; } = 0.0001f;
         public Frustum SunLightFrustum = new();
         public bool UseSceneBoundsForSunLightFrustum { get; set; }
 
@@ -108,11 +108,11 @@ partial class Scene
 
         public void AddProbe(SceneLightProbe lightProbe)
         {
-            var validTextureSet = (scene.LightingInfo.LightProbeType, lightProbe) switch
+            var validTextureSet = (scene.LightingInfo.LightmapGameVersionNumber, lightProbe) switch
             {
                 (_, { Irradiance: null }) => false,
-                (LightProbeType.IndividualProbes, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
-                (LightProbeType.ProbeAtlas, { DirectLightShadows: null }) => false,
+                (1, { DirectLightIndices: null } or { DirectLightScalars: null }) => false,
+                (2, { DirectLightShadows: null }) => false,
                 _ => true,
             };
 
@@ -133,7 +133,8 @@ partial class Scene
 
             var bbox = orthoSize;
             var farPlane = 8096f;
-            var nearPlaneExtend = 2000f;
+            var nearPlaneExtend = 1000f;
+            var bias = 0.001f;
 
             // Move near plane away from camera, in light direction, to capture shadow casters.
             // This could be improved using scene bounds.
@@ -152,6 +153,7 @@ partial class Scene
                     eye = staticBounds.Center - sunDir * nearPlaneExtend;
                     bbox = max * 1.6f;
                     farPlane = bbox;
+                    bias = 0.01f;
                 }
             }
 
@@ -159,6 +161,7 @@ partial class Scene
             var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
 
             SunViewProjection = sunCameraView * sunCameraProjection;
+            SunLightShadowBias = bias;
             SunLightFrustum.Update(SunViewProjection);
         }
     }

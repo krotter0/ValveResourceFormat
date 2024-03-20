@@ -5,6 +5,7 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -562,6 +563,7 @@ namespace GUI.Types.Renderer
                         };
 
                         var edgeFadeDists = entity.GetProperty<Vector3>("edge_fade_dists"); // TODO: Not available on all entities
+                        var isCustomTexture = entity.GetProperty("customcubemaptexture") != null;
 
                         var envMap = new SceneEnvMap(scene, bounds)
                         {
@@ -575,7 +577,10 @@ namespace GUI.Types.Renderer
                             EnvMapTexture = envMapTexture,
                         };
 
-                        scene.LightingInfo.AddEnvironmentMap(envMap);
+                        if (!isCustomTexture)
+                        {
+                            scene.LightingInfo.AddEnvironmentMap(envMap);
+                        }
                     }
 
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
@@ -608,6 +613,12 @@ namespace GUI.Types.Renderer
                             lightProbe.DirectLightIndices = guiContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                         }
+
+                        scene.LightingInfo.LightProbeType = entity.Properties.ContainsKey(StringToken.Get("light_probe_atlas_x")) switch
+                        {
+                            false => Scene.LightProbeType.IndividualProbes,
+                            true => Scene.LightProbeType.ProbeAtlas,
+                        };
 
                         if (dlsdName != null)
                         {
@@ -829,7 +840,7 @@ namespace GUI.Types.Renderer
 
                 if (phys != null)
                 {
-                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model))
+                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model, classname))
                     {
                         physSceneNode.Transform = transformationMatrix;
                         physSceneNode.PhysGroupName = classname;
