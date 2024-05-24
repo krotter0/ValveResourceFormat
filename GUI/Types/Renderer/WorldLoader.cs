@@ -5,7 +5,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.Utils;
@@ -22,7 +21,8 @@ namespace GUI.Types.Renderer
 
         public HashSet<string> DefaultEnabledLayers { get; } = ["Entities", "Particles"];
 
-        public List<(string Name, Matrix4x4 Transform)> CameraMatrices { get; } = [];
+        public List<string> CameraNames { get; } = [];
+        public List<Matrix4x4> CameraMatrices { get; } = [];
 
         public Scene SkyboxScene { get; set; }
         public SceneSkybox2D Skybox2D { get; set; }
@@ -63,6 +63,17 @@ namespace GUI.Types.Renderer
                 var entityLump = (EntityLump)newResource.DataBlock;
                 LoadEntitiesFromLump(entityLump, "world_layer_base", Matrix4x4.Identity); // TODO: Hardcoded layer name
             }
+
+            Action<List<SceneLight>> lightEntityStore = scene.LightingInfo.LightmapGameVersionNumber switch
+            {
+                0 or 1 => scene.LightingInfo.StoreLightMappedLights_V1,
+                2 => scene.LightingInfo.StoreLightMappedLights_V2,
+                _ => (List<SceneLight> x) => Log.Error(nameof(WorldLoader), $"Storing lights for lightmap version {scene.LightingInfo.LightmapGameVersionNumber} is not supported."),
+            };
+
+            lightEntityStore.Invoke(
+                scene.AllNodes.Where(n => n is SceneLight).Cast<SceneLight>().ToList()
+            );
 
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = world.GetWorldNodeNames();
@@ -157,7 +168,7 @@ namespace GUI.Types.Renderer
             if (scene.LightingInfo.LightmapVersionNumber == 8)
             {
                 result.LightmapGameVersionNumber = worldLightingInfo.GetInt32Property("m_nLightmapGameVersionNumber");
-                result.LightingData.LightmapUvScale = new Vector4(worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2(), 0f, 0f);
+                result.LightingData.LightmapUvScale = worldLightingInfo.GetSubCollection("m_vLightmapUvScale").ToVector2();
             }
 
             foreach (var lightmap in worldLightingInfo.GetArray<string>("m_lightMaps"))
@@ -249,6 +260,7 @@ namespace GUI.Types.Renderer
                 }
 
                 var transformationMatrix = parentTransform * EntityTransformHelper.CalculateTransformationMatrix(entity);
+                var light = SceneLight.IsAccepted(classname);
 
                 if (classname == "info_world_layer")
                 {
@@ -264,6 +276,13 @@ namespace GUI.Types.Renderer
                 else if (classname == "skybox_reference")
                 {
                     LoadSkybox(entity);
+                }
+                else if (light.Accepted)
+                {
+                    var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
+                    lightNode.Transform = transformationMatrix;
+                    lightNode.LayerName = layerName;
+                    scene.Add(lightNode, false);
                 }
                 else if (classname == "point_template")
                 {
@@ -529,7 +548,7 @@ namespace GUI.Types.Renderer
                     AABB bounds = default;
                     if (classname == "env_cubemap")
                     {
-                        var radius = entity.GetProperty<float>("influenceradius");
+                        var radius = entity.GetPropertyUnchecked<float>("influenceradius");
                         bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                     }
                     else
@@ -696,26 +715,12 @@ namespace GUI.Types.Renderer
                 if (IsCamera(classname))
                 {
                     var cameraName = entity.GetProperty<string>("cameraname") ?? entity.GetProperty<string>("targetname") ?? classname;
-                    CameraMatrices.Add((cameraName, transformationMatrix));
+                    CameraNames.Add(cameraName);
+                    CameraMatrices.Add(transformationMatrix);
                 }
-                else if (classname == "env_global_light" || classname == "light_environment")
+                else if (classname == "env_global_light")
                 {
-                    var colorNormalized = entity.GetProperty("color").Data switch
-                    {
-                        byte[] bytes => new Vector3(bytes[0], bytes[1], bytes[2]),
-                        Vector3 vec => vec,
-                        Vector4 vec4 => new Vector3(vec4.X, vec4.Y, vec4.Z),
-                        _ => throw new NotImplementedException()
-                    } / 255.0f;
-
-                    var brightness = 1.0f;
-                    if (classname == "light_environment")
-                    {
-                        brightness = Convert.ToSingle(entity.GetProperty("brightness").Data, CultureInfo.InvariantCulture);
-                    }
-
-                    scene.LightingInfo.LightingData.SunLightPosition = transformationMatrix;
-                    scene.LightingInfo.LightingData.SunLightColor = new Vector4(colorNormalized, brightness);
+                    //
                 }
 
                 var rendercolor = entity.GetProperty("rendercolor");
@@ -926,29 +931,34 @@ namespace GUI.Types.Renderer
 
             SkyboxScene = new Scene(guiContext);
 
-            SkyboxScene.FogInfo.GradientFogActive = scene.FogInfo.GradientFogActive;
-            SkyboxScene.FogInfo.CubeFogActive = scene.FogInfo.CubeFogActive;
-
             var skyboxResult = new WorldLoader((World)skyboxWorld.DataBlock, SkyboxScene);
 
-            var skyboxReferenceOffset = EntityTransformHelper.ParseVector(entity.GetProperty<string>("origin"));
-            skyboxResult.WorldOffset += skyboxReferenceOffset;
+            // Take origin and angles from skybox_reference
+            EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
+            var skyboxReference = skyboxReferenceRotationMatrix * Matrix4x4.CreateTranslation(skyboxReferencePositionMatrix);
+
+            var offsetTransform = Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
+            var offsetAndScaleTransform = offsetTransform;
+
+            // Apply skybox_reference transform after scaling
+            offsetAndScaleTransform *= Matrix4x4.CreateScale(skyboxResult.WorldScale) * skyboxReference;
+            offsetTransform *= skyboxReference;
 
             foreach (var node in SkyboxScene.AllNodes)
             {
                 if (node.LayerName == "Entities")
                 {
-                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
+                    node.Transform *= offsetTransform;
                 }
                 else
                 {
-                    node.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                    node.Transform *= offsetAndScaleTransform;
                 }
             }
 
             foreach (var envmap in SkyboxScene.LightingInfo.EnvMaps)
             {
-                envmap.Transform *= Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset) * Matrix4x4.CreateScale(skyboxResult.WorldScale);
+                envmap.Transform *= offsetAndScaleTransform;
             }
 
             guiContext.FileLoader.RemovePackageFromSearch(package);
@@ -979,9 +989,12 @@ namespace GUI.Types.Renderer
             {
                 var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
 
+                // Do not use transformationMatrix because scales need to be ignored
+                EntityTransformHelper.DecomposeTransformationMatrix(entity, out _, out var rotationMatrix, out var positionVector);
+
                 var boxNode = new SimpleBoxSceneNode(scene, color, new Vector3(16f))
                 {
-                    Transform = transformationMatrix,
+                    Transform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector),
                     LayerName = "Entities",
                     Name = filename,
                     EntityData = entity,
@@ -1069,6 +1082,11 @@ namespace GUI.Types.Renderer
 
         private EntityLump.Entity FindEntityByKeyValue(string keyToFind, string valueToFind)
         {
+            if (valueToFind == null)
+            {
+                return null;
+            }
+
             var stringToken = StringToken.Get(keyToFind);
 
             foreach (var entity in Entities)

@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using GUI.Types.Renderer;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization;
 using ValveResourceFormat.ToolsAssetInfo;
@@ -44,7 +43,13 @@ namespace GUI.Utils
         private readonly int ContextId = ++LastContextId;
 #endif
 
-        public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext)
+        public VrfGuiContext()
+        {
+            MaterialLoader = new MaterialLoader(this);
+            ShaderLoader = new ShaderLoader(this);
+        }
+
+        public VrfGuiContext(string fileName, VrfGuiContext parentGuiContext) : this()
         {
 #if DEBUG
             Log.Debug(nameof(VrfGuiContext), $"#{ContextId} created");
@@ -52,8 +57,6 @@ namespace GUI.Utils
 
             FileName = fileName;
             ParentGuiContext = parentGuiContext;
-            MaterialLoader = new MaterialLoader(this);
-            ShaderLoader = new ShaderLoader(this);
             FileLoader = new AdvancedGuiFileLoader(this);
             MeshBufferCache = new GPUMeshBufferCache();
 

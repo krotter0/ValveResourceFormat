@@ -5,8 +5,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using GUI.Controls;
 using GUI.Types.Exporter;
+using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
@@ -31,6 +31,7 @@ namespace GUI.Forms
         private readonly HashSet<string> extractedFiles = [];
         private CancellationTokenSource cancellationTokenSource = new();
         private readonly GltfModelExporter gltfExporter;
+        private readonly Progress<string> progressReporter;
         private Stopwatch exportStopwatch;
 
         private static readonly List<ResourceType> ExtractOrder =
@@ -64,6 +65,7 @@ namespace GUI.Forms
             this.path = path;
             this.decompile = decompile;
             this.exportData = exportData;
+            progressReporter = new Progress<string>(SetProgress);
 
             if (decompile)
             {
@@ -72,7 +74,7 @@ namespace GUI.Forms
 
                 gltfExporter = new GltfModelExporter(trackingFileLoader)
                 {
-                    ProgressReporter = new Progress<string>(SetProgress),
+                    ProgressReporter = progressReporter,
                 };
             }
         }
@@ -244,35 +246,49 @@ namespace GUI.Forms
             cancellationTokenSource.Cancel();
         }
 
-        public void QueueFiles(BetterTreeNode root)
+        public void QueueFiles(IBetterBaseItem root)
         {
-            if (!root.IsFolder)
+            if (root.IsFolder)
             {
-                var file = root.PackageEntry;
+                QueueFiles(root.PkgNode);
+            }
+            else
+            {
+                QueueFiles(root.PackageEntry);
+            }
+        }
 
-                if (fileTypesToExtract.TryGetValue(file.TypeName, out var fileType))
-                {
-                    fileType.Count++;
-                }
-                else
-                {
-                    fileTypesToExtract[file.TypeName] = new FileTypeToExtract(); // Type to be filled in later
-                }
+        public void QueueFiles(VirtualPackageNode root)
+        {
+            foreach (var node in root.Folders)
+            {
+                QueueFiles(node.Value);
+            }
 
-                if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
-                {
-                    specializedQueue.Enqueue(file);
-                    return;
-                }
+            foreach (var file in root.Files)
+            {
+                QueueFiles(file);
+            }
+        }
 
-                filesToExtract.Enqueue(file);
+        public void QueueFiles(PackageEntry file)
+        {
+            if (fileTypesToExtract.TryGetValue(file.TypeName, out var fileType))
+            {
+                fileType.Count++;
+            }
+            else
+            {
+                fileTypesToExtract[file.TypeName] = new FileTypeToExtract(); // Type to be filled in later
+            }
+
+            if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
+            {
+                specializedQueue.Enqueue(file);
                 return;
             }
 
-            foreach (BetterTreeNode node in root.Nodes)
-            {
-                QueueFiles(node);
-            }
+            filesToExtract.Enqueue(file);
         }
 
         private async Task ExtractFilesAsync(Queue<PackageEntry> filesToExtract)
@@ -367,7 +383,7 @@ namespace GUI.Forms
 
             try
             {
-                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader);
+                contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext.FileLoader, progressReporter);
 
                 if (contentFile.Data != null)
                 {

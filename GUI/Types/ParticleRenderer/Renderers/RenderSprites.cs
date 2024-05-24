@@ -10,15 +10,15 @@ namespace GUI.Types.ParticleRenderer.Renderers
         private const string ShaderName = "vrf.particle.sprite";
         private const int VertexSize = 9;
 
-        private Shader shader;
+        private readonly Shader shader;
         private readonly VrfGuiContext guiContext;
         private readonly int vaoHandle;
         private readonly RenderTexture texture;
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
-        private readonly float minSize;
-        private readonly float maxSize = 5000f;
+        private readonly INumberProvider minSize = new LiteralNumberProvider(0f);
+        private readonly INumberProvider maxSize = new LiteralNumberProvider(5000f);
 
         private readonly INumberProvider radiusScale = new LiteralNumberProvider(1f);
         private readonly INumberProvider alphaScale = new LiteralNumberProvider(1f);
@@ -33,7 +33,20 @@ namespace GUI.Types.ParticleRenderer.Renderers
         public RenderSprites(ParticleDefinitionParser parse, VrfGuiContext vrfGuiContext) : base(parse)
         {
             guiContext = vrfGuiContext;
-            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName);
+
+            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
+
+            var shaderParams = new Dictionary<string, byte>();
+            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ADD)
+            {
+                shaderParams["F_ADDITIVE_BLEND"] = 1;
+            }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                shaderParams["F_MOD2X"] = 1;
+            }
+
+            shader = vrfGuiContext.ShaderLoader.LoadShader(ShaderName, shaderParams);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer();
@@ -69,12 +82,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
 #endif
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
-            blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
             overbrightFactor = parse.NumberProvider("m_flOverbrightFactor", overbrightFactor);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
-            minSize = parse.Float("m_flMinSize", minSize);
-            maxSize = parse.Float("m_flMaxSize", maxSize);
+            minSize = parse.NumberProvider("m_flMinSize", minSize);
+            maxSize = parse.NumberProvider("m_flMaxSize", maxSize);
             animationType = parse.Enum<ParticleAnimationType>("m_nAnimationType", animationType);
             radiusScale = parse.NumberProvider("m_flRadiusScale", radiusScale);
             alphaScale = parse.NumberProvider("m_flAlphaScale", alphaScale);
@@ -185,11 +197,11 @@ namespace GUI.Types.ParticleRenderer.Renderers
                         {
                             if (animateInFps)
                             {
-                                frameId = (int)Math.Floor(animationRate * animationTime);
+                                frameId = (int)(animationRate * animationTime);
                             }
                             else
                             {
-                                frameId = (int)Math.Floor(sequence.Frames.Length * animationRate * animationTime);
+                                frameId = (int)(animationTime * animationRate * sequence.FramesPerSecond);
                             }
 
                             if (sequence.Clamp)
@@ -256,6 +268,10 @@ namespace GUI.Types.ParticleRenderer.Renderers
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
             }
+            else if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+            {
+                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
+            }
             else /* if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA) */
             {
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -285,14 +301,6 @@ namespace GUI.Types.ParticleRenderer.Renderers
 
         public override void SetRenderMode(string renderMode)
         {
-            var parameters = new Dictionary<string, byte>();
-
-            if (renderMode != null && shader.RenderModes.Contains(renderMode))
-            {
-                parameters.Add(string.Concat(ShaderLoader.RenderModeDefinePrefix, renderMode), 1);
-            }
-
-            shader = guiContext.ShaderLoader.LoadShader(ShaderName, parameters);
         }
     }
 }

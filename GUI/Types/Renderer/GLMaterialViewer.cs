@@ -23,6 +23,8 @@ namespace GUI.Types.Renderer
             Resource = resource;
             Tabs = tabs;
 
+            AddShaderButton();
+
             Camera.ModifySpeed(0);
         }
 
@@ -153,6 +155,11 @@ namespace GUI.Types.Renderer
 
         private void AddShaderButton()
         {
+            if (Tabs == null)
+            {
+                return; // Will be null when previewing a file
+            }
+
             var button = new Button
             {
                 Text = "Open shader zframe",
@@ -167,10 +174,10 @@ namespace GUI.Types.Renderer
         protected override void InitializeControl()
         {
             AddRenderModeSelectionControl();
-            AddShaderButton();
 
             ParamsTable = new TableLayoutPanel
             {
+                Dock = DockStyle.Top,
                 AutoScroll = true,
                 Width = 220,
                 Height = 300,

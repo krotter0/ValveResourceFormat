@@ -78,6 +78,7 @@ namespace GUI.Types.Renderer
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
             public int CubeMapArrayIndices = -1;
+            public int CubeMapArrayLength = -1;
             public int MorphCompositeTexture = -1;
             public int MorphCompositeTextureSize = -1;
             public int MorphVertexIdOffset = -1;
@@ -154,6 +155,8 @@ namespace GUI.Types.Renderer
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
                             uniforms.CubeMapArrayIndices = shader.GetUniformLocation("g_iEnvMapArrayIndices");
+                            uniforms.CubeMapArrayLength = shader.GetUniformLocation("g_iEnvMapArrayLength");
+
                         }
 
                         if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
@@ -188,7 +191,6 @@ namespace GUI.Types.Renderer
                         }
 
                         context.Scene.LightingInfo.SetLightmapTextures(shader);
-                        context.Scene.FogInfo.SetCubemapFogTexture(shader);
                     }
 
                     material = requestMaterial;
@@ -232,6 +234,7 @@ namespace GUI.Types.Renderer
                 }
                 else
                 {
+                    GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayLength, request.Node.EnvMapIds.Length);
                     GL.ProgramUniform1(shader.Program, uniforms.CubeMapArrayIndices, request.Node.EnvMapIds.Length, request.Node.EnvMapIds);
                 }
             }

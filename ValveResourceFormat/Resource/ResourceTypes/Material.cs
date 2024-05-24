@@ -32,7 +32,7 @@ namespace ValveResourceFormat.ResourceTypes
                 if (!inputSignature.HasValue)
                 {
                     var inputSignatureObject = GetInputSignatureObject();
-                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : default(VsInputSignature);
+                    inputSignature = inputSignatureObject != null ? new(inputSignatureObject) : VsInputSignature.Empty;
                 }
 
                 return inputSignature.Value;
@@ -125,16 +125,6 @@ namespace ValveResourceFormat.ResourceTypes
                 }
             }
 
-            if (Resource?.EditInfo != null)
-            {
-                var specialDeps = (SpecialDependencies)Resource.EditInfo.Structs[ResourceEditInfo.REDIStruct.SpecialDependencies];
-                var hemiOctIsoRoughness_RG_B = specialDeps.List.Any(dependancy => dependancy.CompilerIdentifier == "CompileTexture" && dependancy.String == "Texture Compiler Version Mip HemiOctIsoRoughness_RG_B");
-                if (hemiOctIsoRoughness_RG_B)
-                {
-                    arguments.Add("HemiOctIsoRoughness_RG_B", 1);
-                }
-            }
-
             return arguments;
         }
 
@@ -176,7 +166,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         public readonly struct VsInputSignature
         {
-            public InputSignatureElement[] Elements { get; } = [];
+            public static readonly VsInputSignature Empty = new();
+            public InputSignatureElement[] Elements { get; }
+
+            public VsInputSignature()
+            {
+                Elements = [];
+            }
 
             public VsInputSignature(KVObject data)
             {

@@ -34,10 +34,10 @@ namespace GUI.Controls
             filterTextBox = new System.Windows.Forms.TextBox();
             fileContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
             revealInFileExplorerToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            recentFilesContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
-            clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             addToFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             removeFromFavoritesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            recentFilesContextMenuStrip = new System.Windows.Forms.ContextMenuStrip(components);
+            clearRecentFilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             fileContextMenuStrip.SuspendLayout();
             recentFilesContextMenuStrip.SuspendLayout();
             SuspendLayout();
@@ -47,6 +47,7 @@ namespace GUI.Controls
             treeView.Dock = System.Windows.Forms.DockStyle.Fill;
             treeView.Location = new System.Drawing.Point(0, 23);
             treeView.Name = "treeView";
+            treeView.ShowLines = false;
             treeView.Size = new System.Drawing.Size(581, 331);
             treeView.TabIndex = 2;
             treeView.NodeMouseClick += OnTreeViewNodeMouseClick;
@@ -66,7 +67,7 @@ namespace GUI.Controls
             // 
             fileContextMenuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] { revealInFileExplorerToolStripMenuItem, addToFavoritesToolStripMenuItem, removeFromFavoritesToolStripMenuItem });
             fileContextMenuStrip.Name = "fileContextMenuStrip";
-            fileContextMenuStrip.Size = new System.Drawing.Size(209, 92);
+            fileContextMenuStrip.Size = new System.Drawing.Size(209, 70);
             // 
             // revealInFileExplorerToolStripMenuItem
             // 
@@ -75,6 +76,22 @@ namespace GUI.Controls
             revealInFileExplorerToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
             revealInFileExplorerToolStripMenuItem.Text = "R&eveal in File Explorer";
             revealInFileExplorerToolStripMenuItem.Click += OnRevealInFileExplorerClick;
+            // 
+            // addToFavoritesToolStripMenuItem
+            // 
+            addToFavoritesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("addToFavoritesToolStripMenuItem.Image");
+            addToFavoritesToolStripMenuItem.Name = "addToFavoritesToolStripMenuItem";
+            addToFavoritesToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            addToFavoritesToolStripMenuItem.Text = "Add to &Bookmarks";
+            addToFavoritesToolStripMenuItem.Click += OnAddToBookmarksClick;
+            // 
+            // removeFromFavoritesToolStripMenuItem
+            // 
+            removeFromFavoritesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("removeFromFavoritesToolStripMenuItem.Image");
+            removeFromFavoritesToolStripMenuItem.Name = "removeFromFavoritesToolStripMenuItem";
+            removeFromFavoritesToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
+            removeFromFavoritesToolStripMenuItem.Text = "Remove from &Bookmarks";
+            removeFromFavoritesToolStripMenuItem.Click += OnRemoveFromBookmarksClick;
             // 
             // recentFilesContextMenuStrip
             // 
@@ -90,22 +107,6 @@ namespace GUI.Controls
             clearRecentFilesToolStripMenuItem.Text = "Clear recent files";
             clearRecentFilesToolStripMenuItem.Click += OnClearRecentFilesClick;
             // 
-            // addToFavoritesToolStripMenuItem
-            // 
-            addToFavoritesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("addToFavoritesToolStripMenuItem.Image");
-            addToFavoritesToolStripMenuItem.Name = "addToFavoritesToolStripMenuItem";
-            addToFavoritesToolStripMenuItem.Size = new System.Drawing.Size(196, 22);
-            addToFavoritesToolStripMenuItem.Text = "Add to &Bookmarks";
-            addToFavoritesToolStripMenuItem.Click += OnAddToBookmarksClick;
-            // 
-            // removeFromFavoritesToolStripMenuItem
-            // 
-            removeFromFavoritesToolStripMenuItem.Image = (System.Drawing.Image)resources.GetObject("removeFromFavoritesToolStripMenuItem.Image");
-            removeFromFavoritesToolStripMenuItem.Name = "removeFromFavoritesToolStripMenuItem";
-            removeFromFavoritesToolStripMenuItem.Size = new System.Drawing.Size(208, 22);
-            removeFromFavoritesToolStripMenuItem.Text = "Remove from &Bookmarks";
-            removeFromFavoritesToolStripMenuItem.Click += OnRemoveFromBookmarksClick;
-            // 
             // ExplorerControl
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -114,6 +115,7 @@ namespace GUI.Controls
             Controls.Add(filterTextBox);
             Name = "ExplorerControl";
             Size = new System.Drawing.Size(581, 354);
+            Load += OnExplorerLoad;
             VisibleChanged += OnVisibleChanged;
             fileContextMenuStrip.ResumeLayout(false);
             recentFilesContextMenuStrip.ResumeLayout(false);
