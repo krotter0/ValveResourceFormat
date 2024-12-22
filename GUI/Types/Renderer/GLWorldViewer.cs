@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
+using GUI.Types.Audio;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -26,6 +27,7 @@ namespace GUI.Types.Renderer
         private ComboBox cameraComboBox;
         private SavedCameraPositionsControl savedCameraPositionsControl;
         private EntityInfoForm entityInfoForm;
+        private WorldAudioPlayer AudioPlayer;
         private bool ignoreLayersChangeEvents = true;
         private List<Matrix4x4> CameraMatrices;
 
@@ -52,6 +54,7 @@ namespace GUI.Types.Renderer
                 cameraComboBox?.Dispose();
                 savedCameraPositionsControl?.Dispose();
                 entityInfoForm?.Dispose();
+                AudioPlayer?.Dispose();
             }
         }
 
@@ -297,6 +300,13 @@ namespace GUI.Types.Renderer
                     worldLayersComboBox.SetItemChecked(i, true);
                 }
             }
+
+            AudioPlayer = new WorldAudioPlayer(GuiContext.FileLoader);
+            AudioPlayer.LoadManifest("soundevents/soundevents_manifest.vrman");
+            AudioPlayer.Init();
+            AudioPlayer.Play();
+
+            AudioPlayer.PlaySound(0, new SoundData { Position = Vector3.Zero, Volume = 1f }, "Music.Background.valve_cs2_01");
 
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
 
@@ -613,6 +623,13 @@ namespace GUI.Types.Renderer
 
             Scene.UpdateOctrees();
             SkyboxScene?.UpdateOctrees();
+        }
+
+        protected override void OnPaint(object sender, RenderEventArgs e)
+        {
+            base.OnPaint(sender, e);
+            AudioPlayer.SoundGlobalData.CameraPosition = Camera.Location;
+            AudioPlayer.SoundGlobalData.CameraRight = Camera.GetRightVector();
         }
     }
 }

@@ -54,7 +54,7 @@ namespace GUI.Types.Renderer
             return new Vector3(yawCos * pitchCos, yawSin * pitchCos, pitchSin);
         }
 
-        private Vector3 GetUpVector()
+        public Vector3 GetUpVector()
         {
             var yawSin = MathF.Sin(Yaw);
             var yawCos = MathF.Cos(Yaw);
@@ -63,7 +63,7 @@ namespace GUI.Types.Renderer
             return new Vector3(yawCos * pitchSin, yawSin * pitchSin, pitchCos);
         }
 
-        private Vector3 GetRightVector()
+        public Vector3 GetRightVector()
         {
             const float piOver2 = MathF.PI / 2f;
             return new Vector3(MathF.Cos(Yaw - piOver2), MathF.Sin(Yaw - piOver2), 0);
