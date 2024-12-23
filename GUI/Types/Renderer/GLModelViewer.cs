@@ -3,9 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
+using GUI.Types.Audio;
 using GUI.Utils;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization;
 
 namespace GUI.Types.Renderer
 {
@@ -25,6 +27,8 @@ namespace GUI.Types.Renderer
         private SkeletonSceneNode skeletonSceneNode;
         private HitboxSetSceneNode hitboxSetSceneNode;
         private CheckedListBox physicsGroupsComboBox;
+
+        private WorldAudioPlayer audioPlayer;
 
         public GLModelViewer(VrfGuiContext guiContext) : base(guiContext)
         {
@@ -56,6 +60,7 @@ namespace GUI.Types.Renderer
                 physicsGroupsComboBox?.Dispose();
                 showSkeletonCheckbox?.Dispose();
                 hitboxComboBox?.Dispose();
+                audioPlayer?.Dispose();
             }
         }
 
@@ -282,6 +287,24 @@ namespace GUI.Types.Renderer
                     });
                 }
             }
+
+            audioPlayer = new(Scene.GuiContext.FileLoader);
+            audioPlayer.LoadManifest("soundevents/soundevents_manifest.vrman");
+            audioPlayer.Init();
+            audioPlayer.Play();
+            modelSceneNode.AnimationController.AnimationEventTriggered += OnAnimationEventTriggered;
+        }
+
+        private void OnAnimationEventTriggered(ValveResourceFormat.ResourceTypes.ModelAnimation.AnimationEvent animEvent)
+        {
+            if (animEvent.Name == "AE_CL_PLAYSOUND_ATTACHMENT" || animEvent.Name == "AE_SV_PLAYSOUND_ATTACHMENT" || animEvent.Name == "AE_CL_PLAYSOUND" || animEvent.Name == "AE_SV_PLAYSOUND")
+            {
+                Matrix4x4.Decompose(modelSceneNode.Transform, out _, out _, out var translation);
+                var soundData = new SoundData();
+                soundData.Position = translation;
+                soundData.Volume = 1f;
+                audioPlayer?.PlaySound(0, soundData, animEvent.EventData.GetStringProperty("name"));
+            }
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
@@ -367,6 +390,16 @@ namespace GUI.Types.Renderer
             }
 
             animationComboBox.EndUpdate();
+        }
+
+        protected override void OnPaint(object sender, RenderEventArgs e)
+        {
+            base.OnPaint(sender, e);
+            if (audioPlayer != null)
+            {
+                audioPlayer.SoundGlobalData.CameraPosition = Camera.Location;
+                audioPlayer.SoundGlobalData.CameraRight = Camera.GetRightVector();
+            }
         }
     }
 }

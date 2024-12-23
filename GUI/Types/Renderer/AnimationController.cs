@@ -5,6 +5,8 @@ namespace GUI.Types.Renderer
 {
     class AnimationController
     {
+        public delegate void AnimationEventTriggeredDelegate(AnimationEvent animEvent);
+        public event AnimationEventTriggeredDelegate AnimationEventTriggered;
         private Action<Animation, int> updateHandler = (_, __) => { };
 
         public float FrametimeMultiplier { get; set; } = 1.0f;
@@ -55,8 +57,10 @@ namespace GUI.Types.Renderer
                 return res;
             }
 
+            var lastTime = Time;
             Time += timeStep * FrametimeMultiplier;
             updateHandler(ActiveAnimation, Frame);
+            TriggerAnimationEvents(lastTime, Time);
             shouldUpdate = false;
             return true;
         }
@@ -89,6 +93,40 @@ namespace GUI.Types.Renderer
             else
             {
                 return FrameCache.GetInterpolatedFrame(ActiveAnimation, Time);
+            }
+        }
+
+        private void TriggerAnimationEvents(float lastTime, float currentTime)
+        {
+            if (AnimationEventTriggered == null || ActiveAnimation == null || ActiveAnimation.Events == null)
+            {
+                return;
+            }
+            var animDuration = ActiveAnimation.FrameCount / ActiveAnimation.Fps;
+            lastTime = (lastTime / animDuration) % 1;
+            currentTime = (currentTime / animDuration) % 1;
+
+            for (var i = 0; i < ActiveAnimation.Events.Length; i++)
+            {
+                var animEvent = ActiveAnimation.Events[i];
+                if (currentTime < lastTime)
+                {
+                    if (lastTime <= animEvent.Cycle || animEvent.Cycle < currentTime)
+                    {
+                        AnimationEventTriggered.Invoke(animEvent);
+                    }
+                }
+                else
+                {
+                    if (lastTime <= animEvent.Cycle && animEvent.Cycle < currentTime)
+                    {
+                        AnimationEventTriggered.Invoke(animEvent);
+                    }
+                    else if (currentTime <= animEvent.Cycle)
+                    {
+                        break;
+                    }
+                }
             }
         }
 

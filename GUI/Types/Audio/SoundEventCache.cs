@@ -62,7 +62,7 @@ class SoundEventCache
         return soundType switch
         {
             "csgo_mega" => CSGOMegaSoundEvent.Create(soundContext, soundEventData, soundCache, this),
-            "csgo_music" => CSGOMegaSoundEvent.Create(soundContext, soundEventData, soundCache, this),
+            "csgo_music" => CSGOMusicSoundEvent.Create(soundContext, soundEventData, soundCache, this),
             _ => throw new UnexpectedMagicException("Unexpected soundevent type", soundType, nameof(soundType))
         };
     }

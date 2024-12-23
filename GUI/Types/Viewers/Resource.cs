@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Controls;
@@ -187,6 +188,15 @@ namespace GUI.Types.Viewers
                         {
                             specialTabPage = new TabPage("VCDLIST");
                             specialTabPage.Controls.Add(new ChoreoViewer(resource));
+                            break;
+                        }
+
+                    case ResourceType.SoundEventScript:
+                        {
+                            specialTabPage = new TabPage("SOUNDEVENTS");
+                            var data = (BinaryKV3)resource.DataBlock;
+                            var tabPage = new SoundEventsList(data, vrfGuiContext.FileLoader);
+                            specialTabPage.Controls.Add(tabPage);
                             break;
                         }
 

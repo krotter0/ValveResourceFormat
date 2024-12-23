@@ -29,6 +29,14 @@ internal class SoundEventMixer : ISampleProvider
         }
     }
 
+    public void StopImmediately()
+    {
+        foreach (var item in SoundEvents)
+        {
+            item.StopImmediately();
+        }
+    }
+
     public bool HasSounds()
     {
         return SoundEvents.Count > 0;

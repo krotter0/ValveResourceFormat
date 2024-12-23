@@ -306,7 +306,7 @@ namespace GUI.Types.Renderer
             AudioPlayer.Init();
             AudioPlayer.Play();
 
-            AudioPlayer.PlaySound(0, new SoundData { Position = Vector3.Zero, Volume = 1f }, "Music.Background.valve_cs2_01");
+            AudioPlayer.PlaySound(0, new SoundData { Position = Vector3.Zero, Volume = 1f }, "Test.Step.0");
 
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
 

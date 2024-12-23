@@ -6,8 +6,8 @@ internal class StereoVolumeSampleProvider : ISampleProvider
     private ISampleProvider _sampleProvider;
     public WaveFormat WaveFormat => _sampleProvider.WaveFormat;
 
-    private float _lastLeftVolume = 1f;
-    private float _lastRightVolume = 1f;
+    private float _lastLeftVolume = -1f;
+    private float _lastRightVolume = -1f;
     public float LeftVolume = 1f;
     public float RightVolume = 1f;
 
@@ -24,7 +24,7 @@ internal class StereoVolumeSampleProvider : ISampleProvider
             RightVolume = (1f + pan) * volume;
         }
 
-        if (immediately)
+        if (immediately || _lastLeftVolume < 0)
         {
             _lastLeftVolume = LeftVolume;
             _lastRightVolume = RightVolume;

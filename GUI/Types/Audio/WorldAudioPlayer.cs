@@ -1,6 +1,8 @@
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Audio;
 internal class WorldAudioPlayer : IDisposable
@@ -42,7 +44,7 @@ internal class WorldAudioPlayer : IDisposable
         waveOut.Play();
     }
 
-    public void PlaySound(int mixerIndex, SoundData soundData, string soundEventName)
+    public ISoundEvent PlaySound(int mixerIndex, SoundData soundData, string soundEventName)
     {
         var soundContext = new SoundContext(soundData, SoundGlobalData);
 
@@ -50,11 +52,18 @@ internal class WorldAudioPlayer : IDisposable
 
         var mixer = mixers[mixerIndex];
         mixer.AddSound(soundEvent);
+
+        return soundEvent;
     }
 
     public void LoadManifest(string soundEventManifest)
     {
         soundEventCache.AddSoundEventsFromManifest(soundEventManifest);
+    }
+
+    public void LoadSoundEventsFile(KVObject soundEvents)
+    {
+        soundEventCache.AddSoundEvents(soundEvents);
     }
 
     public void Dispose()
