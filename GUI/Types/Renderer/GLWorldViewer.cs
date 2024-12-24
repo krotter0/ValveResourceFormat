@@ -306,8 +306,6 @@ namespace GUI.Types.Renderer
             AudioPlayer.Init();
             AudioPlayer.Play();
 
-            AudioPlayer.PlaySound(0, new SoundData { Position = Vector3.Zero, Volume = 1f }, "Test.Step.0");
-
             Invoke(savedCameraPositionsControl.RefreshSavedPositions);
 
             ignoreLayersChangeEvents = false;
