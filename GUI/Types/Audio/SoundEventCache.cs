@@ -53,6 +53,31 @@ class SoundEventCache
         {
             soundEvents[item.Key] = (KVObject)item.Value;
         }
+
+        foreach (var item in soundEvents)
+        {
+            InheritSoundEventBase(item.Value);
+        }
+    }
+
+    private void InheritSoundEventBase(KVObject soundEvent)
+    {
+        var baseSoundEventName = soundEvent.GetStringProperty("base");
+        if (baseSoundEventName == null || !soundEvents.TryGetValue(baseSoundEventName, out var baseSoundEvent))
+        {
+            return;
+        }
+
+        soundEvent.Properties.Remove("base");
+        InheritSoundEventBase(baseSoundEvent);
+
+        foreach (var baseProperty in baseSoundEvent.Properties)
+        {
+            if (!soundEvent.Properties.ContainsKey(baseProperty.Key))
+            {
+                soundEvent.AddProperty(baseProperty.Key, baseProperty.Value);
+            }
+        }
     }
 
     public ISoundEvent CreateSoundEvent(SoundContext soundContext, SoundCache soundCache, string soundEventName)
