@@ -58,12 +58,12 @@ internal class WorldAudioPlayer : IDisposable
 
     public void LoadManifest(string soundEventManifest)
     {
-        soundEventCache.AddSoundEventsFromManifest(soundEventManifest);
+        soundEventCache.LoadSoundEventsFromManifest(soundEventManifest);
     }
 
     public void LoadSoundEventsFile(KVObject soundEvents)
     {
-        soundEventCache.AddSoundEvents(soundEvents);
+        soundEventCache.LoadSoundEvents(soundEvents);
     }
 
     public void Dispose()

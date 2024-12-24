@@ -21,7 +21,7 @@ class SoundEventCache
         return soundEvents[soundEventName];
     }
 
-    public void AddSoundEventsFromManifest(string fileName)
+    public void LoadSoundEventsFromManifest(string fileName)
     {
         var file = fileLoader.LoadFileCompiled(fileName);
         if (file.DataBlock is not ResourceManifest manifest)
@@ -32,11 +32,11 @@ class SoundEventCache
         var resources = manifest.Resources.SelectMany(x => x);
         foreach (var resource in resources)
         {
-            AddSoundEvents(resource);
+            LoadSoundEvents(resource);
         }
     }
 
-    public void AddSoundEvents(string fileName)
+    public void LoadSoundEvents(string fileName)
     {
         var file = fileLoader.LoadFileCompiled(fileName);
         if (file.DataBlock is not BinaryKV3 kv3Block)
@@ -44,10 +44,10 @@ class SoundEventCache
             throw new FormatException("File is not a kv3 file");
         }
 
-        AddSoundEvents(kv3Block.Data);
+        LoadSoundEvents(kv3Block.Data);
     }
 
-    public void AddSoundEvents(KVObject soundEventsFile)
+    public void LoadSoundEvents(KVObject soundEventsFile)
     {
         foreach (var item in soundEventsFile)
         {
