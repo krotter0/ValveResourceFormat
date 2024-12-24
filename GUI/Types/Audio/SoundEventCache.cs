@@ -8,6 +8,12 @@ using ValveResourceFormat.Utils;
 namespace GUI.Types.Audio;
 class SoundEventCache
 {
+    private static Dictionary<string, Func<SoundContext, KVObject, SoundCache, SoundEventCache, ISoundEvent>> soundEventTypeConstructors = new()
+    {
+        { "csgo_mega", CSGOMegaSoundEvent.Create },
+        { "csgo_music", CSGOMusicSoundEvent.Create },
+    };
+
     private IFileLoader fileLoader;
     private Dictionary<string, KVObject> soundEvents = new Dictionary<string, KVObject>();
 
@@ -18,7 +24,7 @@ class SoundEventCache
 
     public KVObject GetSoundEvent(string soundEventName)
     {
-        return soundEvents[soundEventName];
+        return soundEvents.GetValueOrDefault(soundEventName);
     }
 
     public void LoadSoundEventsFromManifest(string fileName)
@@ -84,11 +90,23 @@ class SoundEventCache
     {
         var soundEventData = soundEvents[soundEventName];
         var soundType = soundEventData.GetStringProperty("type");
-        return soundType switch
+
+        if (!soundEventTypeConstructors.TryGetValue(soundType, out var soundEventConstructor))
         {
-            "csgo_mega" => CSGOMegaSoundEvent.Create(soundContext, soundEventData, soundCache, this),
-            "csgo_music" => CSGOMusicSoundEvent.Create(soundContext, soundEventData, soundCache, this),
-            _ => throw new UnexpectedMagicException("Unexpected soundevent type", soundType, nameof(soundType))
-        };
+            throw new UnexpectedMagicException("Unexpected soundevent type", soundType, nameof(soundType));
+        }
+
+        return soundEventConstructor(soundContext, soundEventData, soundCache, this);
+    }
+
+    public static bool IsSoundEventTypeValid(string soundEventType)
+    {
+        return soundEventTypeConstructors.ContainsKey(soundEventType);
+    }
+
+    public static bool IsSoundEventTypeValid(KVObject soundEventData)
+    {
+        var type = soundEventData.GetStringProperty("type");
+        return soundEventTypeConstructors.ContainsKey(type);
     }
 }

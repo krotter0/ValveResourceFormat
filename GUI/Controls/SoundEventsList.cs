@@ -5,7 +5,7 @@ using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Controls;
-public partial class SoundEventsList : UserControl
+partial class SoundEventsList : UserControl
 {
     private WorldAudioPlayer audioPlayer;
     private ISoundEvent activeSoundEvent;
@@ -16,11 +16,12 @@ public partial class SoundEventsList : UserControl
         Dock = DockStyle.Fill;
         InitializeComponent();
 
+        audioPlayer = new(fileLoader);
+        audioPlayer.LoadSoundEventsFile(soundEvents.Data);
+
         var soundEventNames = soundEvents.Data.Select(x => x.Key);
         AddEntries(soundEventNames);
 
-        audioPlayer = new(fileLoader);
-        audioPlayer.LoadSoundEventsFile(soundEvents.Data);
         audioPlayer.Init();
         audioPlayer.Play();
     }
@@ -44,7 +45,7 @@ public partial class SoundEventsList : UserControl
 
     public SoundEventsListEntry CreateEntry(string soundEventName)
     {
-        var entry = new SoundEventsListEntry();
+        var entry = new SoundEventsListEntry(soundEventName, audioPlayer.SoundEventCache);
         entry.SetSoundEventName(soundEventName);
         entry.PlayClicked += OnEntryPlayClicked;
         return entry;

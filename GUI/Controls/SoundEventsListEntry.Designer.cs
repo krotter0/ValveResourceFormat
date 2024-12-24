@@ -30,6 +30,7 @@ partial class SoundEventsListEntry
     {
         playButton = new System.Windows.Forms.Button();
         soundEventName = new System.Windows.Forms.TextBox();
+        errorLabel = new System.Windows.Forms.Label();
         SuspendLayout();
         // 
         // playButton
@@ -50,19 +51,31 @@ partial class SoundEventsListEntry
         soundEventName.Location = new System.Drawing.Point(45, 5);
         soundEventName.Name = "soundEventName";
         soundEventName.ReadOnly = true;
-        soundEventName.Size = new System.Drawing.Size(336, 16);
+        soundEventName.Size = new System.Drawing.Size(257, 16);
         soundEventName.TabIndex = 2;
         soundEventName.TabStop = false;
         soundEventName.Text = "soundEventName";
+        // 
+        // errorLabel
+        // 
+        errorLabel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
+        errorLabel.AutoSize = true;
+        errorLabel.ForeColor = System.Drawing.Color.Red;
+        errorLabel.Location = new System.Drawing.Point(542, 5);
+        errorLabel.Name = "errorLabel";
+        errorLabel.Size = new System.Drawing.Size(0, 15);
+        errorLabel.TabIndex = 3;
+        errorLabel.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
         // 
         // SoundEventsListEntry
         // 
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        Controls.Add(errorLabel);
         Controls.Add(soundEventName);
         Controls.Add(playButton);
         Name = "SoundEventsListEntry";
-        Size = new System.Drawing.Size(504, 25);
+        Size = new System.Drawing.Size(545, 25);
         ResumeLayout(false);
         PerformLayout();
     }
@@ -71,4 +84,5 @@ partial class SoundEventsListEntry
 
     private System.Windows.Forms.Button playButton;
     private System.Windows.Forms.TextBox soundEventName;
+    private System.Windows.Forms.Label errorLabel;
 }

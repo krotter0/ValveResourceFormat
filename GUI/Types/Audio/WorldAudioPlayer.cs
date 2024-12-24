@@ -1,14 +1,13 @@
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Audio;
 internal class WorldAudioPlayer : IDisposable
 {
-    private SoundCache soundCache;
-    private SoundEventCache soundEventCache;
+    public SoundCache SoundCache { get; private set; }
+    public SoundEventCache SoundEventCache { get; private set; }
     private SoundEventMixer[] mixers;
     private IWaveProvider mixingWaveProvider;
 
@@ -21,8 +20,8 @@ internal class WorldAudioPlayer : IDisposable
     public WorldAudioPlayer(WaveFormat waveFormat, IFileLoader fileLoader)
     {
         WaveFormat = waveFormat;
-        soundCache = new SoundCache(fileLoader, waveFormat);
-        soundEventCache = new SoundEventCache(fileLoader);
+        SoundCache = new SoundCache(fileLoader, waveFormat);
+        SoundEventCache = new SoundEventCache(fileLoader);
     }
 
     public WorldAudioPlayer(IFileLoader fileLoader) : this(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2), fileLoader) { }
@@ -48,7 +47,7 @@ internal class WorldAudioPlayer : IDisposable
     {
         var soundContext = new SoundContext(soundData, SoundGlobalData);
 
-        var soundEvent = soundEventCache.CreateSoundEvent(soundContext, soundCache, soundEventName);
+        var soundEvent = SoundEventCache.CreateSoundEvent(soundContext, SoundCache, soundEventName);
 
         var mixer = mixers[mixerIndex];
         mixer.AddSound(soundEvent);
@@ -58,12 +57,12 @@ internal class WorldAudioPlayer : IDisposable
 
     public void LoadManifest(string soundEventManifest)
     {
-        soundEventCache.LoadSoundEventsFromManifest(soundEventManifest);
+        SoundEventCache.LoadSoundEventsFromManifest(soundEventManifest);
     }
 
     public void LoadSoundEventsFile(KVObject soundEvents)
     {
-        soundEventCache.LoadSoundEvents(soundEvents);
+        SoundEventCache.LoadSoundEvents(soundEvents);
     }
 
     public void Dispose()
